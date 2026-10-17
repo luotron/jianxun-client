@@ -40,6 +40,18 @@ class NewDeviceVerifyRequired(ApiError):
     """status 110 - the device_id is unknown and needs captcha/SMS verification."""
 
 
+class CaptchaRequired(ApiError):
+    """status 220 - the server demands the Aliyun/Tencent behaviour captcha.
+
+    The app answers it with ``captcha_verify_param`` / ``need_verify`` /
+    ``scene_id`` in the login payload.  This client does not solve captchas;
+    callers should cancel the login when this is raised.
+    """
+
+
+CAPTCHA_STATUS = 220
+
+
 @dataclass
 class DeviceInfo:
     """Device fingerprint sent inside the login payload.
@@ -72,6 +84,51 @@ class LoginResult:
     phone: str
     name: str
     raw: dict = field(repr=False)
+
+
+@dataclass
+class GroupMember:
+    """A member of a group (``GET /v1/groups/{groupNo}/members``).
+
+    Field set taken from the decrypted capture in ``tcpdump/cap_http.pcap``::
+
+        [{"id":145382, "uid":"...", "group_no":"...", "name":"...", "remark":"",
+          "role":1, "version":..., "is_deleted":0, "status":1, "vercode":"",
+          "invite_uid":"...", "robot":0, "forbidden_expir_time":0,
+          "friend_remark":"", "created_at":"...", "updated_at":"...",
+          "is_white_list":0, "is_member":0, "background_color":1,
+          "nickname_color":1, "is_pretty":0}, ...]
+
+    ``role``: 1 = owner/creator, 0 = regular member.
+    """
+
+    uid: str
+    group_no: str
+    name: str
+    role: int
+    id: int = 0
+    remark: str = ""
+    friend_remark: str = ""
+    status: int = 1
+    is_deleted: int = 0
+    robot: int = 0
+    raw: dict = field(default_factory=dict, repr=False)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "GroupMember":
+        return cls(
+            uid=str(d.get("uid", "")),
+            group_no=str(d.get("group_no", "")),
+            name=str(d.get("name", "")),
+            role=int(d.get("role", 0)),
+            id=int(d.get("id", 0)),
+            remark=str(d.get("remark", "")),
+            friend_remark=str(d.get("friend_remark", "")),
+            status=int(d.get("status", 1)),
+            is_deleted=int(d.get("is_deleted", 0)),
+            robot=int(d.get("robot", 0)),
+            raw=d,
+        )
 
 
 class JianxunClient:
@@ -115,11 +172,17 @@ class JianxunClient:
         return self._parse(resp)
 
     def _parse(self, resp: requests.Response) -> Any:
+        # Business error messages are GBK-encoded ("非群成员，不能访问" etc.);
+        # try UTF-8 first, then GBK, so ApiError shows the real text.
+        raw = resp.content
         try:
-            j = resp.json()
-        except ValueError:
-            resp.raise_for_status()
-            raise ApiError(-1, f"non-json response: {resp.text[:200]}")
+            j = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            try:
+                j = json.loads(raw.decode("gbk"))
+            except ValueError:
+                resp.raise_for_status()
+                raise ApiError(-1, f"non-json response: {raw[:200]!r}")
 
         # Success envelope: {"data": "<base64 encrypted>"}
         if isinstance(j, dict) and isinstance(j.get("data"), str):
@@ -130,6 +193,8 @@ class JianxunClient:
         msg = j.get("msg", "") if isinstance(j, dict) else str(j)
         if status == 110:
             raise NewDeviceVerifyRequired(status, msg, j)
+        if status == CAPTCHA_STATUS or (isinstance(j, dict) and j.get("need_verify")):
+            raise CaptchaRequired(status, msg, j)
         raise ApiError(status, msg, j)
 
     # ------------------------------------------------------------------ #
@@ -249,3 +314,65 @@ class JianxunClient:
             "security_answer": security_answer,
         }
         return self.request("POST", "/user/login", payload)
+
+    # ------------------------------------------------------------------ #
+    # groups
+    # ------------------------------------------------------------------ #
+    def get_group_list(self) -> list[dict]:
+        """List the groups the account has joined.
+
+        ``GET /v1/group/my`` — the response is an encrypted JSON **array** of
+        group objects (``[]`` when the account is in no group).  Raw dicts are
+        returned; use :meth:`get_group` for the full profile of one group.
+        """
+        return self.request("GET", "/group/my")
+
+    def get_group(self, group_no: str) -> dict:
+        """Full profile of one group (``GET /v1/groups/{groupNo}``).
+
+        Returns the decrypted dict, e.g.::
+
+            {"group_no": "...", "group_type": 0, "name": "...", "notice": "",
+             "member_count": 2, "online_count": 1, "role": 0, "status": 1,
+             "created_at": "...", "version": ..., "Creator": "<uid>", ...}
+        """
+        return self.request("GET", f"/groups/{group_no}")
+
+    def get_group_members(
+        self,
+        group_no: str,
+        keyword: str = "",
+        limit: int = 50,
+        page: int = 1,
+    ) -> list[GroupMember]:
+        """Paged member list of a group.
+
+        ``GET /v1/groups/{groupNo}/members?keyword={kw}&limit={n}&page={p}``
+        (as seen in the capture: ``?keyword&limit=20&page=1`` and
+        ``?keyword=&limit=50&page=1``).  The decrypted payload is a JSON array
+        of member objects (see :class:`GroupMember`).
+        """
+        data = self.request(
+            "GET", f"/groups/{group_no}/members?keyword={keyword}&limit={limit}&page={page}"
+        )
+        return [GroupMember.from_dict(m) for m in data]
+
+    def get_all_group_members(
+        self,
+        group_no: str,
+        limit: int = 50,
+        max_pages: int = 200,
+    ) -> list[GroupMember]:
+        """Auto-paginated member list: fetch every page until a short page.
+
+        Keeps calling :meth:`get_group_members` with ``page = 1, 2, ...`` and
+        stops when a page returns fewer than ``limit`` members (``max_pages``
+        is a safety cap against infinite loops).
+        """
+        members: list[GroupMember] = []
+        for page in range(1, max_pages + 1):
+            page_members = self.get_group_members(group_no, limit=limit, page=page)
+            members.extend(page_members)
+            if len(page_members) < limit:
+                break
+        return members

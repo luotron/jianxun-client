@@ -33,6 +33,7 @@ DEFAULT_CONFIG_PATH = os.environ.get(
 # Built-in defaults (used when config.json is absent or incomplete).
 _DEFAULTS = {
     "base_url": "https://api.jianxun01.com/v1",
+    "token": "",                # session token, persisted here after a successful login
     "account": {
         "username": "qwe778800",   # username account; takes precedence over phone
         "phone": "",               # phone login: wire username = country_code + phone
@@ -87,6 +88,7 @@ class Config:
     account: Account
     device: Device
     security: Security
+    token: str = ""
     path: str = ""
 
     @classmethod
@@ -102,8 +104,30 @@ class Config:
             account=Account(**data["account"]),
             device=Device(**data["device"]),
             security=Security(**data.get("security", {})),
+            token=data.get("token", ""),
             path=path if os.path.isfile(path) else "",
         )
+
+    def save_token(self, token: str) -> None:
+        """Persist the session token back into the config file (``token`` key).
+
+        The user's original ``config.json`` is preserved; only the top-level
+        ``token`` field is added/updated.
+        """
+        if not self.path:
+            return
+        data = {}
+        if os.path.isfile(self.path):
+            with open(self.path, "r", encoding="utf-8") as fh:
+                try:
+                    data = json.load(fh)
+                except ValueError:
+                    data = {}
+        data["token"] = token
+        with open(self.path, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2, ensure_ascii=False)
+            fh.write("\n")
+        self.token = token
 
 
 def _merge(base: dict, override: dict) -> dict:

@@ -1,9 +1,9 @@
 {
   "base_url": "https://api.jianxun01.com/v1",
   "account": {
-    "username": "qwe778800",
-    "phone": "",
-    "password": "qwe778800",
+    "username": "aa115566",
+    "phone": "15303021909",
+    "password": "aa115566",
     "country_code": "0086"
   },
   "device": {
@@ -13,6 +13,7 @@
   },
   "security": {
     "question": "儿时养的第一只宠物的名字",
-    "answer": "小狗赛虎"
-  }
+    "answer": "小兔小兔"
+  },
+  "token": "cb56ea29e63a4f53ab3bbf2354d0f122"
 }
