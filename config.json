@@ -1,0 +1,18 @@
+{
+  "base_url": "https://api.jianxun01.com/v1",
+  "account": {
+    "username": "qwe778800",
+    "phone": "",
+    "password": "qwe778800",
+    "country_code": "0086"
+  },
+  "device": {
+    "device_id": "bdd9c2b81eaf972c",
+    "device_model": "OnePlus_PLR110",
+    "device_name": "OP6117L1"
+  },
+  "security": {
+    "question": "儿时养的第一只宠物的名字",
+    "answer": "小狗赛虎"
+  }
+}
