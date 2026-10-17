@@ -48,6 +48,13 @@ MAGIC = 0x8C7AC0B3
 FIELD_14 = 0x14  # 帧头常量字段（抓包恒为 0x14）
 CHANNEL_GROUP = 2
 
+# 域名仅对国内 DNS 解析；这些是抓包/HTTPDNS 实测到的真实服务器地址，
+# 域名解析失败时按顺序回退。
+_FALLBACK_HOSTS = [
+    "123.60.87.106:7007",     # tcp.jianxun01.com 真实地址（HTTPDNS/抓包）
+    "154.23.224.149:5100",    # tcp.jianxun02.com 备用环境
+]
+
 
 class WKIMError(Exception):
     pass
@@ -115,9 +122,9 @@ class WKIMClient:
     # ------------------------------------------------------------------ #
     def connect(self) -> None:
         host, _, port = self.addr.partition(":")
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._sock.settimeout(self.timeout)
-        self._sock.connect((host, int(port)))
+        if not host or not port:
+            raise WKIMError(f"无效的 im_addr: {self.addr!r}")
+        self._sock = self._dial(host, int(port))
         self._counter = 4989  # 线上观测到的起始计数器
 
         install_id = uuid.uuid4().hex  # App 的安装 ID 形态（32 位 hex）
@@ -127,6 +134,28 @@ class WKIMClient:
             "IM 握手载荷加密算法尚未还原：connect 的 128 字节密文块无法离线构造，"
             "无法完成安全握手。见 README「线上 IM 协议」一节。"
         )
+
+    def _dial(self, host: str, port: int) -> socket.socket:
+        """TCP 连接；域名解析失败时回退到已知真实 IP。"""
+        candidates = [(host, port)]
+        if host not in [h.split(":")[0] for h in _FALLBACK_HOSTS]:
+            for fb in _FALLBACK_HOSTS:
+                h2, _, p2 = fb.partition(":")
+                if p2 == str(port):
+                    candidates.append((h2, int(p2)))
+        last_err: OSError | None = None
+        for h, p in candidates:
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(self.timeout)
+                sock.connect((h, p))
+                if h != host:
+                    self.addr = f"{h}:{p}"
+                return sock
+            except OSError as e:
+                last_err = e
+                continue
+        raise WKIMError(f"无法连接 {host}:{port}: {last_err}")
 
     def close(self) -> None:
         self._connected = False
