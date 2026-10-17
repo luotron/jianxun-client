@@ -52,6 +52,31 @@ class CaptchaRequired(ApiError):
 CAPTCHA_STATUS = 220
 
 
+def jpeg_dimensions(path: str) -> tuple[int, int]:
+    """Read (width, height) from a JPEG's SOF marker. (0, 0) when unknown."""
+    import struct
+
+    with open(path, "rb") as fh:
+        data = fh.read()
+    if data[:2] != b"\xff\xd8":
+        return 0, 0
+    i = 2
+    while i + 4 < len(data):
+        if data[i] != 0xFF:
+            i += 1
+            continue
+        marker = data[i + 1]
+        if marker == 0xD8 or (0xD0 <= marker <= 0xD7):
+            i += 2
+            continue
+        length = struct.unpack(">H", data[i + 2:i + 4])[0]
+        if marker in (0xC0, 0xC1, 0xC2, 0xC3):  # SOF0..3
+            height, width = struct.unpack(">HH", data[i + 5:i + 9])
+            return width, height
+        i += 2 + length
+    return 0, 0
+
+
 @dataclass
 class DeviceInfo:
     """Device fingerprint sent inside the login payload.
@@ -376,3 +401,62 @@ class JianxunClient:
             if len(page_members) < limit:
                 break
         return members
+
+    # ------------------------------------------------------------------ #
+    # file upload (image message flow, verified against cap_http.pcap)
+    # ------------------------------------------------------------------ #
+    def upload_file(self, channel_id: str, file_path: str, channel_type: int = 2) -> dict:
+        """Upload a file for a chat message (``type=chat``).
+
+        Two-step flow captured from the app (``tcpdump/cap_http.pcap``):
+
+        1. presign: ``GET /v1/file/upload?path=<urlencoded>&type=chat`` →
+           plain JSON ``{"url": "<upload url>"}``;
+        2. upload: ``POST`` that url, multipart field ``file`` (plain JSON
+           response, ``x-sign`` is the literal string ``"x-sign"`` as the app
+           sends it for FormData bodies).
+
+        Returns the plain JSON dict from step 2, e.g.::
+
+            {"path": "file/preview/chat/2/<groupNo>/<uuid>",
+             "url":  "https://zy-jp-prod2.oss-ap-northeast-1.aliyuncs.com/chat/2/<groupNo>/<uuid>"}
+
+        The ``url`` is what goes into the image-message payload.
+        """
+        import time as _time
+        import urllib.parse as _urlparse
+        import uuid as _uuid
+
+        path = f"/{channel_type}/{channel_id}/{_uuid.uuid4().hex}"
+        quoted = _urlparse.quote(path, safe="")
+        presign_url = f"{self.base_url}/file/upload?path={quoted}&type=chat"
+        headers = self._headers("")
+        headers["content-type"] = "application/json"
+        resp = self.session.get(presign_url, headers=headers, timeout=self.timeout)
+        resp.raise_for_status()
+        presign = resp.json()  # {"url": "..."}
+
+        suffix = file_path.rsplit(".", 1)[-1].lower() if "." in file_path else "jpg"
+        mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png"}.get(
+            suffix, "application/octet-stream"
+        )
+        with open(file_path, "rb") as fh:
+            content = fh.read()
+        filename = f"image_{int(_time.time() * 1000)}.{suffix}"
+
+        up_headers = {
+            "user-agent": USER_AGENT,
+            "accept-encoding": "gzip",
+            "x-timestamp": str(int(_time.time() * 1000)),
+            "x-nonce": crypto.gen_nonce(),
+            "x-sign": "x-sign",  # the app literally sends this for multipart bodies
+            "token": self.token or "",
+        }
+        resp2 = self.session.post(
+            presign["url"],
+            files={"file": (filename, content, mime)},
+            headers=up_headers,
+            timeout=self.timeout * 3,
+        )
+        resp2.raise_for_status()
+        return resp2.json()

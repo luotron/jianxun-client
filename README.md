@@ -262,6 +262,8 @@ baseUrl 全部放在全局配置文件 `config.json`** 里，直接改这个文�
 {
   "base_url": "https://api.jianxun01.com/v1",
   "token": "cb56ea29e63a4f53ab3bbf2354d0f122",
+  "uid": "b70b1f5f2d0c4337ad42e87429b9af65",
+  "im_addr": "tcp.jianxun01.com:15100",
   "account": {
     "username": "qwe778800",
     "phone": "",
@@ -284,8 +286,10 @@ baseUrl 全部放在全局配置文件 `config.json`** 里，直接改这个文�
   按手机号登录（实际 `username = country_code + phone`）。
 - `security.question` / `security.answer` 用于**陌生设备密保验证**：普通登录遇到
   `status 110` 时自动带上它们重试。
-- `token`：登录成功后自动写入 `config.json`；下次启动可直接选「使用已保存的
-  token」免登录。
+- `token` / `uid`：登录成功后自动写入 `config.json`；下次启动可直接复用
+  token 免登录。
+- `im_addr`：悟空IM 长连接地址（发消息/图片用），默认
+  `tcp.jianxun01.com:15100`。
 
 > 配置文件可以只写部分字段，缺省项自动用内置默认值补齐。
 > 可用环境变量 `JIANXUN_CONFIG=/path/to/other.json` 指定其它路径。
@@ -389,7 +393,8 @@ jianxun-login/
 │   ├── __init__.py
 │   ├── config.py     # 配置加载（config.json / $JIANXUN_CONFIG，缺省合并默认值）
 │   ├── crypto.py     # GCM 密钥派生 + 加解密 + 签名
-│   └── client.py     # JianxunClient / login / verify_security / 错误处理
+│   ├── client.py     # JianxunClient / login / 群查询 / 图片上传 / 错误处理
+│   └── im.py         # 悟空IM TCP 长连接（x25519 DH + AES 会话密钥 + 发消息）
 ├── tools/
 │   ├── decrypt_capture.py   # 解密抓包 data
 │   └── gen_device_id.py     # 生成可用的 device_id
@@ -423,10 +428,9 @@ jianxun-login/
 | 群资料 | HTTP | `/v1/groups/{groupNo}` | GET | **已实现+实测**（`cap_http.pcap`）：完整群详情，见下方响应示例 |
 | 获取指定群成员列表 | HTTP | `/v1/groups/{groupNo}/members` | GET | **已实现+实测**：`?keyword=&limit=50&page=1` 分页，非群成员报 400 |
 | 群成员增量同步 | HTTP | `/v1/groups/{groupNo}/membersync` | GET | `?version=&limit=` 增量 |
-| 发送群消息 | **悟空IM TCP** | `SendPacket`（非 HTTP） | — | `channel_id=群号, channel_type=2`(群)，payload 为消息 JSON |
-| 接收群消息 | **悟空IM TCP** | `RecvPacket`（服务器下推） | — | 客户端回 `RecvackPacket` |
-| 上传图片 | HTTP | `/v1/file/upload` | POST(multipart) | 返回 `oss.jianxun01.com` 上的图片 URL |
-| 发送图片消息 | HTTP + 悟空IM | `/v1/file/upload` → `SendPacket` | — | 先上传拿 URL，再发 `type=图片` 的消息 |
+| 发送文字消息 | **悟空IM TCP** | `SendPacket`（`jianxun/im.py`） | — | **已实现**：`channel_id=群号, channel_type=2`，payload `{"content":"...","type":1}` |
+| 发送图片 | HTTP + 悟空IM | `/v1/file/upload` → `SendPacket` | — | **已实现**：先上传拿 OSS URL，再发 `{"width","height","url","type":2}` |
+| 接收群消息 | **悟空IM TCP** | `RecvPacket`（服务器下推） | — | 客户端回 `RecvackPacket`（`im.py` 已实现解析/校验/回执） |
 | 会话列表同步 | HTTP | `/v1/conversation/sync` | POST | body: `{version,last_msg_seqs,msg_count,device_uuid}`（抓包已解出） |
 | 频道消息历史 | HTTP | `/v1/message/channel/sync` | POST | 拉历史消息 |
 | 消息已读/撤回/置顶 | HTTP | `/v1/message/readed` `/message/revoke` `/message/pinned` | POST | 消息扩展 |
@@ -478,8 +482,62 @@ python main.py
   当前群: 测试群 (9c509b80996e4ee8a1d315063c9b940a)
     1. 查询群成员列表   (GET /groups/{groupNo}/members，自动翻页拉全量)
     2. 查询群资料       (GET /groups/{groupNo})
-    3. 返回群列表
+    3. 发送文字消息     (悟空IM SendPacket)
+    4. 发送图片         (/v1/file/upload 上传 → 悟空IM SendPacket)
+    5. 返回群列表
 ```
+
+### 悟空IM（WuKongIM）长连接协议 —— `jianxun/im.py`
+
+> **重要**：2026-10 真机抓包（`tcpdump/cap_im*.pcap`）发现线上协议与开源
+> `wukongimfluttersdk` **不同**，是服务端魔改版。本节按抓包字节逐一还原；
+> 帧格式已明确，**载荷加密算法尚未还原**，故 `im.py` 目前只能解析结构，
+> `send` 会明确报错而不是发出错误数据。
+
+**服务器地址**：`tcp.jianxun01.com:7007`（App 用百度 HTTPDNS
+`olimenew.baidu.com` 解析到 `123.60.87.106`，端口 7007；域名系统 DNS 解析
+到 Clash 假 IP `198.18.3.183`）。备用环境 `tcp.jianxun02.com:5100`
+（154.23.224.149）。`jx.json` 里的 `socketUrl` 虽写着 `:15100`，实际流量走
+**7007**。境外 IP 连接该服务器会被静默丢弃/重置（需国内网络或代理）。
+
+**帧结构（抓包还原）**：
+
+```
+信封(小帧): [0x80][u8 总长(含类型字节)][u8 类型字节][内容]
+帧头(内容开头): [u8 a][u8 b][(u8 c)][u56 BE 计数器][u32 字段1][u32=0x14][u32 魔数 0x8c7ac0b3][载荷]
+```
+
+| 帧 | a b (c) | 说明 |
+|----|---------|------|
+| connect | `01 01` | 载荷 = 32位hex安装ID + 128字节密文(客户端DH公钥+加密凭证?) |
+| connack | `13 01` | 载荷 = 密文（含服务端DH公钥+salt，加密算法未知） |
+| 消息(recv) | `01 03 01` | 载荷 = 密文（~850字节/条，AES-CBC?） |
+| sendack | `19 01` | 载荷 = 16字节 MD5（消息去重标识） |
+
+- 计数器从 ~4989 起，每帧 +2；`u32=0x14` 与魔数 `0x8c7ac0b3` 为固定值
+  （魔数非 CRC32，经校验）。
+- 消息内容类型仍是悟空IM 体系：文本 `{"content":"...","type":1}`、
+  图片 `{"width","height","url","type":2}`（明文 JSON 经加密后入载荷）。
+
+**已排除的加密假设**（均解密失败）：GCM key `3a7b8c9d...`、key 片段 `A`、
+`aesKey 4ciYaGQMpZemFjCB`、md5/sha256(token|uid) 派生、x25519 静态服务端
+公钥假设下的 DH、AES-ECB/CBC 常见 IV、AES-GCM(nonce 前/后置)。
+
+**图片上传（HTTP，已实测，见 `cap_http.pcap`）**：
+
+```
+GET  /v1/file/upload?path=%2F2%2F<groupNo>%2F<uuid32>&type=chat
+       → {"url":"https://api.jianxun01.com/v1/file/upload?type=chat&path=/2/<groupNo>/<uuid>"}
+POST <该url>  multipart 字段 file（x-sign 头为字面量 "x-sign"，与 App 一致）
+       → {"path":"file/preview/chat/2/<groupNo>/<uuid>",
+           "url":"https://zy-jp-prod2.oss-ap-northeast-1.aliyuncs.com/chat/2/<groupNo>/<uuid>"}
+```
+
+> 下一步（如需打通发消息）：在可连上 7007 的网络环境（国内）下重放我方
+> 构造的 connect 帧，用服务端 connack 响应迭代握手格式；或对 libapp.so
+> 中 IM 加密函数（`send.queue.waitConnack` / `clientKey` 相关代码）做静态
+> 还原。抓包原始文件已入库：`tcpdump/cap_im.pcap`（重连握手）、
+> `cap_im4.pcap`（发消息流量）。
 
 ```python
 from jianxun import JianxunClient

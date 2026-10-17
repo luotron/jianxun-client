@@ -34,6 +34,8 @@ DEFAULT_CONFIG_PATH = os.environ.get(
 _DEFAULTS = {
     "base_url": "https://api.jianxun01.com/v1",
     "token": "",                # session token, persisted here after a successful login
+    "uid": "",                  # account uid, persisted here after a successful login
+    "im_addr": "tcp.jianxun01.com:15100",  # WuKongIM 长连接地址（悟空IM）
     "account": {
         "username": "qwe778800",   # username account; takes precedence over phone
         "phone": "",               # phone login: wire username = country_code + phone
@@ -89,6 +91,8 @@ class Config:
     device: Device
     security: Security
     token: str = ""
+    uid: str = ""
+    im_addr: str = ""
     path: str = ""
 
     @classmethod
@@ -105,14 +109,16 @@ class Config:
             device=Device(**data["device"]),
             security=Security(**data.get("security", {})),
             token=data.get("token", ""),
+            uid=data.get("uid", ""),
+            im_addr=data.get("im_addr", ""),
             path=path if os.path.isfile(path) else "",
         )
 
-    def save_token(self, token: str) -> None:
-        """Persist the session token back into the config file (``token`` key).
+    def save_token(self, token: str, uid: str = "") -> None:
+        """Persist the session token (and uid) back into the config file.
 
         The user's original ``config.json`` is preserved; only the top-level
-        ``token`` field is added/updated.
+        ``token`` / ``uid`` fields are added/updated.
         """
         if not self.path:
             return
@@ -124,10 +130,14 @@ class Config:
                 except ValueError:
                     data = {}
         data["token"] = token
+        if uid:
+            data["uid"] = uid
         with open(self.path, "w", encoding="utf-8") as fh:
             json.dump(data, fh, indent=2, ensure_ascii=False)
             fh.write("\n")
         self.token = token
+        if uid:
+            self.uid = uid
 
 
 def _merge(base: dict, override: dict) -> dict:

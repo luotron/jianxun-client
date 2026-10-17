@@ -29,7 +29,9 @@ import sys
 from jianxun import (
     JianxunClient, DeviceInfo, ApiError, NewDeviceVerifyRequired, CaptchaRequired,
 )
+from jianxun.client import jpeg_dimensions
 from jianxun.config import Config
+from jianxun.im import WKIMClient, WKIMError, WKIMNotImplemented, DEFAULT_IM_ADDR
 
 
 def ask(prompt: str, default: str = "") -> str:
@@ -105,7 +107,7 @@ def auto_login(cfg: Config, client: JianxunClient) -> bool:
         print(f"[!] 登录失败: {e}")
         return False
 
-    cfg.save_token(result.token)
+    cfg.save_token(result.token, result.uid)
     print("[+] 登录成功")
     print(f"    uid      : {result.uid}")
     print(f"    name     : {result.name}")
@@ -140,17 +142,37 @@ def select_group(client: JianxunClient) -> dict | None:
         print("[!] 序号超出范围")
 
 
-def group_view_menu(client: JianxunClient, group: dict) -> None:
-    """For the selected group: view members or profile."""
+def group_view_menu(client: JianxunClient, group: dict, cfg: Config) -> None:
+    """For the selected group: view members / profile, or send messages."""
     group_no = group.get("group_no", "")
     name = group.get("name") or group_no
+    im_client: WKIMClient | None = None
+
+    def ensure_im() -> WKIMClient:
+        nonlocal im_client
+        if im_client is None or not im_client.connected:
+            if not (cfg.uid and client.token):
+                raise WKIMError("缺少 uid/token（请先重新登录获取）")
+            im_client = WKIMClient(
+                addr=cfg.im_addr or DEFAULT_IM_ADDR,
+                uid=cfg.uid,
+                token=client.token,
+                device_id=cfg.device.device_id,
+            )
+            print(f"[*] 连接悟空IM: {im_client.addr} ...")
+            im_client.connect()
+            print("[+] IM 连接成功（会话密钥已协商）")
+        return im_client
+
     while True:
         print(f"\n当前群: {name} ({group_no})")
         print("请选择操作:")
         print("  1. 查询群成员列表")
         print("  2. 查询群资料")
-        print("  3. 返回群列表")
-        choice = ask("> ", "3")
+        print("  3. 发送文字消息")
+        print("  4. 发送图片")
+        print("  5. 返回群列表")
+        choice = ask("> ", "5")
         try:
             if choice == "1":
                 print(f"[*] 自动翻页拉取群成员列表 ...")
@@ -160,11 +182,40 @@ def group_view_menu(client: JianxunClient, group: dict) -> None:
             elif choice == "2":
                 print(json.dumps(client.get_group(group_no), indent=2, ensure_ascii=False))
             elif choice == "3":
+                text = ask("消息内容: ")
+                if not text:
+                    continue
+                ack = ensure_im().send_text(group_no, text)
+                if ack.reason_code == 0:
+                    print(f"[+] 已发送: messageID={ack.message_id} "
+                          f"messageSeq={ack.message_seq} clientSeq={ack.client_seq}")
+                else:
+                    print(f"[!] 发送失败: reasonCode={ack.reason_code}")
+            elif choice == "4":
+                file_path = ask("本地图片路径: ")
+                if not file_path:
+                    continue
+                print("[*] 上传图片 ...")
+                up = client.upload_file(group_no, file_path)
+                width, height = jpeg_dimensions(file_path)
+                print(f"[*] 上传成功: {up['url']}")
+                ack = ensure_im().send_image(group_no, up["url"], width, height)
+                if ack.reason_code == 0:
+                    print(f"[+] 已发送图片: messageID={ack.message_id} "
+                          f"messageSeq={ack.message_seq} ({width}x{height})")
+                else:
+                    print(f"[!] 发送失败: reasonCode={ack.reason_code}")
+            elif choice == "5":
                 return
             else:
                 print("[!] 无效选项")
-        except (ApiError, ValueError) as e:
-            print(f"[!] 查询失败: {e}")
+        except (ApiError, ValueError, WKIMError, OSError) as e:
+            print(f"[!] 操作失败: {e}")
+            if isinstance(e, WKIMNotImplemented):
+                print("    提示: IM 消息加密协议尚未完全还原，见 README「线上 IM 协议」。")
+            if im_client is not None:
+                im_client.close()
+                im_client = None
 
 
 def main() -> int:
@@ -188,7 +239,7 @@ def main() -> int:
     while True:
         print()
         print("请选择操作:")
-        print("  1. 查询群（选择群查看成员列表 / 群资料）")
+        print("  1. 查询群（选择群查看成员/资料，或发消息/图片）")
         print("  2. 重新登录")
         print("  3. 退出")
         choice = ask("> ", "3")
@@ -202,7 +253,7 @@ def main() -> int:
                     break
                 if group is None:
                     break
-                group_view_menu(client, group)
+                group_view_menu(client, group, cfg)
         elif choice == "2":
             cfg = Config.load()
             client = JianxunClient(base_url=cfg.base_url)
