@@ -1,0 +1,15 @@
+{
+  "both_authenticated": true,
+  "send_ack": {
+    "message_id": 2112161849800564736,
+    "client_seq": 1,
+    "message_seq": 14,
+    "reason_code": 1
+  },
+  "received": {
+    "message_id": 2112161849800564736,
+    "message_seq": 14,
+    "channel_type": 2,
+    "content_matches": true
+  }
+}

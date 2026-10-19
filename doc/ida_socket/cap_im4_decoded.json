@@ -1,0 +1,320 @@
+[
+  {
+    "source": [
+      "192.168.0.136",
+      44132
+    ],
+    "destination": [
+      "106.53.220.67",
+      8080
+    ],
+    "chunks": [
+      {
+        "wire_bytes": 388,
+        "prefix_hex": "c63fbec0ed73f905",
+        "control": {
+          "id": 0,
+          "op": 4,
+          "accesskey": "",
+          "fingerprint": "",
+          "simulator": 0,
+          "logs": [
+            {
+              "log_msg": "[Log] dispatch connect to [106.*.*.67:8080] successfully",
+              "net_type": "WIFI",
+              "accesskey": "910c76bcec1bb4470f010ba24bc8a393",
+              "fingerprint": "E6319E11162A94F9236399F5D5AE279E",
+              "log_level": "info",
+              "session_id": "c62e75281704da63",
+              "version": 13,
+              "build": "20240525",
+              "platform": "android",
+              "trace_id": "4966c9a7915e2f49",
+              "trace_name": "trd.log",
+              "log_id": 196,
+              "Timestamp": "2026-10-17 23:12:30",
+              "Time": "2026-10-17 23:12:30.861"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "source": [
+      "106.53.220.67",
+      8080
+    ],
+    "destination": [
+      "192.168.0.136",
+      44132
+    ],
+    "chunks": [
+      {
+        "wire_bytes": 68,
+        "prefix_hex": "c63fbec3ecb3ea9a",
+        "control": {
+          "op": 260,
+          "status": 200,
+          "id": 0
+        }
+      }
+    ]
+  },
+  {
+    "source": [
+      "192.168.0.136",
+      48710
+    ],
+    "destination": [
+      "106.53.220.67",
+      80
+    ],
+    "chunks": [
+      {
+        "wire_bytes": 270,
+        "prefix_hex": "3577cc4745454545",
+        "frames": [
+          {
+            "type": 7,
+            "flags": 0,
+            "body_bytes": 0
+          },
+          {
+            "type": 3,
+            "flags": 2,
+            "body_bytes": 265,
+            "setting": 0,
+            "client_seq": 28,
+            "client_msg_no": "4a3f9374a83b440291d822066f5cd9295",
+            "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+            "channel_type": 2,
+            "expire": 0,
+            "msg_key": "011b021189f09d2d0ba333e1fb2a131c",
+            "encrypted_payload": "7CHqBGJa57F+SIRlUZaB/yl7CsSw8Nm/T54V+v4twrVdenf2nSGvhcczbhSH3fSGtnFYMWZK6L+X1JkUdkmwSE50jApAXyZ1NJtwt9NOWH/O92+eGEQE6nO4BojWeGv1Bft2AlYdfsHivrqxwcTC0w=="
+          },
+          {
+            "type": 7,
+            "flags": 0,
+            "body_bytes": 0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "source": [
+      "106.53.220.67",
+      80
+    ],
+    "destination": [
+      "192.168.0.136",
+      48710
+    ],
+    "chunks": [
+      {
+        "wire_bytes": 21,
+        "prefix_hex": "c507545808329a45",
+        "frames": [
+          {
+            "type": 8,
+            "flags": 0,
+            "body_bytes": 0
+          },
+          {
+            "type": 4,
+            "flags": 2,
+            "body_bytes": 17,
+            "message_id": 2111475599984730112,
+            "client_seq": 28,
+            "message_seq": 11,
+            "reason_code": 1
+          },
+          {
+            "type": 8,
+            "flags": 0,
+            "body_bytes": 0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "source": [
+      "192.168.0.136",
+      39018
+    ],
+    "destination": [
+      "106.53.220.67",
+      8080
+    ],
+    "chunks": [
+      {
+        "wire_bytes": 212,
+        "prefix_hex": "c63fbec0ec23f0b1",
+        "control": {
+          "id": 0,
+          "op": 6,
+          "accesskey": "910c76bcec1bb4470f010ba24bc8a393",
+          "fingerprint": "E6319E11162A94F9236399F5D5AE279E",
+          "simulator": 0,
+          "request": {
+            "support_task_type": [
+              "dns"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "source": [
+      "106.53.220.67",
+      8080
+    ],
+    "destination": [
+      "192.168.0.136",
+      39018
+    ],
+    "chunks": [
+      {
+        "wire_bytes": 68,
+        "prefix_hex": "c63fbec3ecb3fe8e",
+        "control": {
+          "op": 262,
+          "id": 0
+        }
+      }
+    ]
+  },
+  {
+    "source": [
+      "192.168.0.136",
+      39030
+    ],
+    "destination": [
+      "106.53.220.67",
+      8080
+    ],
+    "chunks": [
+      {
+        "wire_bytes": 388,
+        "prefix_hex": "c63fbec0ed73a8f3",
+        "control": {
+          "id": 0,
+          "op": 4,
+          "accesskey": "",
+          "fingerprint": "",
+          "simulator": 0,
+          "logs": [
+            {
+              "log_msg": "[Log] dispatch connect to [106.*.*.67:8080] successfully",
+              "net_type": "WIFI",
+              "accesskey": "910c76bcec1bb4470f010ba24bc8a393",
+              "fingerprint": "E6319E11162A94F9236399F5D5AE279E",
+              "log_level": "info",
+              "session_id": "c62e75281704da63",
+              "version": 13,
+              "build": "20240525",
+              "platform": "android",
+              "trace_id": "ebd8ed85e486254c",
+              "trace_name": "trd.log",
+              "log_id": 197,
+              "Timestamp": "2026-10-17 23:12:50",
+              "Time": "2026-10-17 23:12:50.831"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "source": [
+      "106.53.220.67",
+      8080
+    ],
+    "destination": [
+      "192.168.0.136",
+      39030
+    ],
+    "chunks": [
+      {
+        "wire_bytes": 68,
+        "prefix_hex": "c63fbec3ecb3d4ff",
+        "control": {
+          "op": 260,
+          "status": 200,
+          "id": 0
+        }
+      }
+    ]
+  },
+  {
+    "source": [
+      "192.168.0.136",
+      39040
+    ],
+    "destination": [
+      "106.53.220.67",
+      8080
+    ],
+    "chunks": [
+      {
+        "wire_bytes": 228,
+        "prefix_hex": "c63fbec0ec134814",
+        "control": {
+          "id": 0,
+          "op": 3,
+          "accesskey": "910c76bcec1bb4470f010ba24bc8a393",
+          "fingerprint": "E6319E11162A94F9236399F5D5AE279E",
+          "simulator": 0,
+          "sdk_version": 0,
+          "platform": 0,
+          "rls": 0,
+          "exclude_ips": []
+        }
+      }
+    ]
+  },
+  {
+    "source": [
+      "106.53.220.67",
+      8080
+    ],
+    "destination": [
+      "192.168.0.136",
+      39040
+    ],
+    "chunks": [
+      {
+        "wire_bytes": 356,
+        "prefix_hex": "c63fbec3ed939caf",
+        "control": {
+          "id": 0,
+          "fake_request": 1,
+          "country": "CN",
+          "log_level": "info",
+          "bypass_client_ip": 0,
+          "ipset": [
+            "106.53.220.67",
+            "43.136.105.26",
+            "106.52.213.141"
+          ],
+          "backup": {},
+          "isp": "dx",
+          "status": 200,
+          "score": 75,
+          "Level": "good",
+          "op": 259,
+          "auto_listen": 1,
+          "mudp": {
+            "status": 0
+          },
+          "ip": "59.32.137.136",
+          "risk_control": 0,
+          "dispatch_type": "backend"
+        }
+      }
+    ]
+  }
+]

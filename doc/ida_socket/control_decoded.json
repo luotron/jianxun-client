@@ -1,0 +1,168 @@
+[
+  {
+    "flow": [
+      [
+        "192.168.0.136",
+        44132
+      ],
+      [
+        "106.53.220.67",
+        8080
+      ]
+    ],
+    "message": {
+      "error": "Error -3 while decompressing data: incorrect header check",
+      "header": "e5c9010101843a9d03ea3521eda2fe7a"
+    }
+  },
+  {
+    "flow": [
+      [
+        "106.53.220.67",
+        8080
+      ],
+      [
+        "192.168.0.136",
+        44132
+      ]
+    ],
+    "message": {
+      "op": 260,
+      "status": 200,
+      "id": 0
+    }
+  },
+  {
+    "flow": [
+      [
+        "192.168.0.136",
+        39018
+      ],
+      [
+        "106.53.220.67",
+        8080
+      ]
+    ],
+    "message": {
+      "id": 0,
+      "op": 6,
+      "accesskey": "910c76bcec1bb4470f010ba24bc8a393",
+      "fingerprint": "E6319E11162A94F9236399F5D5AE279E",
+      "simulator": 0,
+      "request": {
+        "support_task_type": [
+          "dns"
+        ]
+      }
+    }
+  },
+  {
+    "flow": [
+      [
+        "106.53.220.67",
+        8080
+      ],
+      [
+        "192.168.0.136",
+        39018
+      ]
+    ],
+    "message": {
+      "op": 262,
+      "id": 0
+    }
+  },
+  {
+    "flow": [
+      [
+        "192.168.0.136",
+        39030
+      ],
+      [
+        "106.53.220.67",
+        8080
+      ]
+    ],
+    "message": {
+      "error": "Error -3 while decompressing data: incorrect header check",
+      "header": "e5c9010101846b6b03757a9639af0afd"
+    }
+  },
+  {
+    "flow": [
+      [
+        "106.53.220.67",
+        8080
+      ],
+      [
+        "192.168.0.136",
+        39030
+      ]
+    ],
+    "message": {
+      "op": 260,
+      "status": 200,
+      "id": 0
+    }
+  },
+  {
+    "flow": [
+      [
+        "192.168.0.136",
+        39040
+      ],
+      [
+        "106.53.220.67",
+        8080
+      ]
+    ],
+    "message": {
+      "id": 0,
+      "op": 3,
+      "accesskey": "910c76bcec1bb4470f010ba24bc8a393",
+      "fingerprint": "E6319E11162A94F9236399F5D5AE279E",
+      "simulator": 0,
+      "sdk_version": 0,
+      "platform": 0,
+      "rls": 0,
+      "exclude_ips": []
+    }
+  },
+  {
+    "flow": [
+      [
+        "106.53.220.67",
+        8080
+      ],
+      [
+        "192.168.0.136",
+        39040
+      ]
+    ],
+    "message": {
+      "id": 0,
+      "fake_request": 1,
+      "country": "CN",
+      "log_level": "info",
+      "bypass_client_ip": 0,
+      "ipset": [
+        "106.53.220.67",
+        "43.136.105.26",
+        "106.52.213.141"
+      ],
+      "backup": {},
+      "isp": "dx",
+      "status": 200,
+      "score": 75,
+      "Level": "good",
+      "op": 259,
+      "auto_listen": 1,
+      "mudp": {
+        "status": 0
+      },
+      "ip": "59.32.137.136",
+      "risk_control": 0,
+      "dispatch_type": "backend"
+    }
+  }
+]

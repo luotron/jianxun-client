@@ -4,7 +4,8 @@ from .client import (
     NewDeviceVerifyRequired, CaptchaRequired, ApiError,
 )
 from .config import Config, Account, Device, CONFIG
-from .im import WKIMClient, WKIMError, WKIMNotImplemented, DEFAULT_IM_ADDR
+from .im import WKIMClient, WKIMError, WKIMTimeout, WKIMNotImplemented, SendAck, RecvMessage, DEFAULT_IM_ADDR
+from .qlck import QLCKOptions
 from . import crypto
 
 __all__ = [
@@ -22,6 +23,10 @@ __all__ = [
     "CONFIG",
     "WKIMClient",
     "WKIMError",
+    "WKIMTimeout",
+    "QLCKOptions",
+    "SendAck",
+    "RecvMessage",
     "WKIMNotImplemented",
     "DEFAULT_IM_ADDR",
     "crypto",

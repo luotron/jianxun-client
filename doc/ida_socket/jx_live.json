@@ -1,0 +1,20 @@
+{
+  "data": {
+    "code": 0,
+    "data": {
+      "updateTitle": "\u6709\u65b0\u7248\u672c\u53ef\u7528",
+      "updateContent": "\r\n1\u3001\u4fee\u590d\u5df2\u77e5bug; \r\n2\u3001\u4f18\u5316\u7528\u6237\u4f53\u9a8c.",
+      "upgradeMode": 2,
+      "popupMode": 1,
+      "downloadUrl": "https://flblz.xflatl.cn/ffapk/w2rkoc",
+      "iosDownloadUrl": "https://testflight.apple.com/join/j3d2Samy",
+      "versionName": "4.2.8",
+      "versionCode": 2026091318,
+      "packageSize": 136323265,
+      "baseUrl": "https://api.jianxun01.com/v1",
+      "socketUrl": "tcp.jianxun01.com:15100",
+      "ossUrl": "https://oss.jianxun01.com/",
+      "singleCardUrl": "http://118.178.57.214:1869"
+    }
+  }
+}

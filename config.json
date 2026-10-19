@@ -17,5 +17,6 @@
   },
   "token": "cb56ea29e63a4f53ab3bbf2354d0f122",
   "uid": "b70b1f5f2d0c4337ad42e87429b9af65",
-  "im_addr": "123.60.87.106:15100"
+  "im_addr": "tcp.jianxun01.com:15100",
+  "im_transport": "appvest"
 }

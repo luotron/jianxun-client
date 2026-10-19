@@ -1,0 +1,14 @@
+[
+  {
+    "host": "tcp.jianxun01.com",
+    "port": 15100,
+    "preamble_only_reply": "",
+    "preamble_only_eof": true
+  },
+  {
+    "host": "api.jianxun01.com",
+    "port": 443,
+    "preamble_only_reply": "",
+    "preamble_only_eof": true
+  }
+]

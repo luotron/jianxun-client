@@ -1,0 +1,513 @@
+{
+  "tested_at": "2026-10-19T21:20:22+0800",
+  "path": "/message/channel/sync",
+  "request": {
+    "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+    "channel_type": 2,
+    "start_message_seq": 0,
+    "end_message_seq": 0,
+    "limit": 20,
+    "pull_mode": 0
+  },
+  "succeeded": true,
+  "response": {
+    "start_message_seq": 0,
+    "end_message_seq": 0,
+    "pull_mode": 0,
+    "more": 0,
+    "messages": [
+      {
+        "header": {
+          "no_persist": 0,
+          "red_dot": 0,
+          "sync_once": 0
+        },
+        "setting": 0,
+        "message_id": 2111433413947731968,
+        "message_idstr": "2111433413947731968",
+        "message_seq": 1,
+        "client_msg_no": "7af7914b272e40e0b4d39e0a0ec36d490",
+        "from_uid": "",
+        "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+        "channel_type": 2,
+        "timestamp": 1792239929,
+        "payload": {
+          "content": "何败邀请{0}加入群聊",
+          "creator": "25916f7ffb7d4a6c860afcb9f4fa0d0b",
+          "creator_name": "何败",
+          "extra": [
+            {
+              "name": "Luotron",
+              "uid": "130b2cff3a1842b8a4da15287c706148"
+            }
+          ],
+          "type": 1001,
+          "version": 1097147
+        },
+        "signal_payload": "",
+        "is_deleted": 0,
+        "readed": 0,
+        "extra_version": 0
+      },
+      {
+        "header": {
+          "no_persist": 0,
+          "red_dot": 1,
+          "sync_once": 0
+        },
+        "setting": 0,
+        "message_id": 2111433443244937216,
+        "message_idstr": "2111433443244937216",
+        "message_seq": 2,
+        "client_msg_no": "bb5ed9be6f0643e7be38da425c3016d85",
+        "from_uid": "25916f7ffb7d4a6c860afcb9f4fa0d0b",
+        "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+        "channel_type": 2,
+        "timestamp": 1792239936,
+        "payload": {
+          "content": "hello",
+          "extra": {
+            "sender_is_member": 0,
+            "sender_is_pretty": 0,
+            "sender_nickname_color": 1
+          },
+          "type": 1
+        },
+        "signal_payload": "",
+        "is_deleted": 0,
+        "readed": 0,
+        "extra_version": 0
+      },
+      {
+        "header": {
+          "no_persist": 0,
+          "red_dot": 1,
+          "sync_once": 0
+        },
+        "setting": 0,
+        "message_id": 2111451838883467264,
+        "message_idstr": "2111451838883467264",
+        "message_seq": 3,
+        "client_msg_no": "b3f3ffc0ceb84f9fb19ae8838dc062b40",
+        "from_uid": "",
+        "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+        "channel_type": 2,
+        "timestamp": 1792244321,
+        "payload": {
+          "content": "何败邀请{0}加入群聊",
+          "extra": [
+            {
+              "name": "小兔小兔",
+              "uid": "b70b1f5f2d0c4337ad42e87429b9af65"
+            }
+          ],
+          "from_name": "何败",
+          "from_uid": "25916f7ffb7d4a6c860afcb9f4fa0d0b",
+          "type": 1002
+        },
+        "signal_payload": "",
+        "is_deleted": 0,
+        "readed": 0,
+        "extra_version": 0
+      },
+      {
+        "header": {
+          "no_persist": 0,
+          "red_dot": 1,
+          "sync_once": 0
+        },
+        "setting": 0,
+        "message_id": 2111459381194170368,
+        "message_idstr": "2111459381194170368",
+        "message_seq": 4,
+        "client_msg_no": "b011f207f82948fbbd27ef3b6c6de9305",
+        "from_uid": "25916f7ffb7d4a6c860afcb9f4fa0d0b",
+        "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+        "channel_type": 2,
+        "timestamp": 1792246120,
+        "payload": {
+          "extra": {
+            "sender_is_member": 0,
+            "sender_is_pretty": 0,
+            "sender_nickname_color": 1
+          },
+          "height": 2800,
+          "type": 2,
+          "url": "file/preview/chat/2/9c509b80996e4ee8a1d315063c9b940a/9b8c231e-f7aa-4255-84a5-451faa554bd8",
+          "width": 1272
+        },
+        "signal_payload": "",
+        "is_deleted": 0,
+        "readed": 0,
+        "extra_version": 0
+      },
+      {
+        "header": {
+          "no_persist": 0,
+          "red_dot": 1,
+          "sync_once": 0
+        },
+        "setting": 0,
+        "message_id": 2111459405152034816,
+        "message_idstr": "2111459405152034816",
+        "message_seq": 5,
+        "client_msg_no": "7e381c1414b247509eb707cd9e9435db5",
+        "from_uid": "25916f7ffb7d4a6c860afcb9f4fa0d0b",
+        "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+        "channel_type": 2,
+        "timestamp": 1792246125,
+        "payload": {
+          "content": "1111",
+          "extra": {
+            "sender_is_member": 0,
+            "sender_is_pretty": 0,
+            "sender_nickname_color": 1
+          },
+          "type": 1
+        },
+        "signal_payload": "",
+        "is_deleted": 0,
+        "readed": 0,
+        "extra_version": 0
+      },
+      {
+        "header": {
+          "no_persist": 0,
+          "red_dot": 1,
+          "sync_once": 0
+        },
+        "setting": 0,
+        "message_id": 2111470057337827328,
+        "message_idstr": "2111470057337827328",
+        "message_seq": 6,
+        "client_msg_no": "9658d843c04e4ec59da5e30cfc0b14dd5",
+        "from_uid": "25916f7ffb7d4a6c860afcb9f4fa0d0b",
+        "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+        "channel_type": 2,
+        "timestamp": 1792248665,
+        "payload": {
+          "content": "1111",
+          "extra": {
+            "sender_is_member": 0,
+            "sender_is_pretty": 0,
+            "sender_nickname_color": 1
+          },
+          "type": 1
+        },
+        "signal_payload": "",
+        "is_deleted": 0,
+        "readed": 0,
+        "extra_version": 0
+      },
+      {
+        "header": {
+          "no_persist": 0,
+          "red_dot": 1,
+          "sync_once": 0
+        },
+        "setting": 0,
+        "message_id": 2111470087369043968,
+        "message_idstr": "2111470087369043968",
+        "message_seq": 7,
+        "client_msg_no": "093cf2ec7cd94e8cb3199a082fbf04ef5",
+        "from_uid": "25916f7ffb7d4a6c860afcb9f4fa0d0b",
+        "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+        "channel_type": 2,
+        "timestamp": 1792248672,
+        "payload": {
+          "extra": {
+            "sender_is_member": 0,
+            "sender_is_pretty": 0,
+            "sender_nickname_color": 1
+          },
+          "height": 2800,
+          "type": 2,
+          "url": "file/preview/chat/2/9c509b80996e4ee8a1d315063c9b940a/be8e05e5-0c7e-4fe2-a267-0e55159502fa",
+          "width": 1272
+        },
+        "signal_payload": "",
+        "is_deleted": 0,
+        "readed": 0,
+        "extra_version": 0
+      },
+      {
+        "header": {
+          "no_persist": 0,
+          "red_dot": 1,
+          "sync_once": 0
+        },
+        "setting": 0,
+        "message_id": 2111474824634081280,
+        "message_idstr": "2111474824634081280",
+        "message_seq": 8,
+        "client_msg_no": "5f01dd0a26ac4f87ac96df60e1f61c0c5",
+        "from_uid": "25916f7ffb7d4a6c860afcb9f4fa0d0b",
+        "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+        "channel_type": 2,
+        "timestamp": 1792249802,
+        "payload": {
+          "content": "test123",
+          "extra": {
+            "sender_is_member": 0,
+            "sender_is_pretty": 0,
+            "sender_nickname_color": 1
+          },
+          "type": 1
+        },
+        "signal_payload": "",
+        "is_deleted": 0,
+        "readed": 0,
+        "extra_version": 0
+      },
+      {
+        "header": {
+          "no_persist": 0,
+          "red_dot": 1,
+          "sync_once": 0
+        },
+        "setting": 0,
+        "message_id": 2111474966162481152,
+        "message_idstr": "2111474966162481152",
+        "message_seq": 9,
+        "client_msg_no": "1206fbfa6d794c50bdb54ef2efa38e715",
+        "from_uid": "25916f7ffb7d4a6c860afcb9f4fa0d0b",
+        "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+        "channel_type": 2,
+        "timestamp": 1792249835,
+        "payload": {
+          "content": "test456",
+          "extra": {
+            "sender_is_member": 0,
+            "sender_is_pretty": 0,
+            "sender_nickname_color": 1
+          },
+          "type": 1
+        },
+        "signal_payload": "",
+        "is_deleted": 0,
+        "readed": 0,
+        "extra_version": 0
+      },
+      {
+        "header": {
+          "no_persist": 0,
+          "red_dot": 1,
+          "sync_once": 0
+        },
+        "setting": 0,
+        "message_id": 2111475145213124608,
+        "message_idstr": "2111475145213124608",
+        "message_seq": 10,
+        "client_msg_no": "1a2a6f0c5ba7449a810f7b03d5e26ea75",
+        "from_uid": "25916f7ffb7d4a6c860afcb9f4fa0d0b",
+        "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+        "channel_type": 2,
+        "timestamp": 1792249878,
+        "payload": {
+          "content": "test789",
+          "extra": {
+            "sender_is_member": 0,
+            "sender_is_pretty": 0,
+            "sender_nickname_color": 1
+          },
+          "type": 1
+        },
+        "signal_payload": "",
+        "is_deleted": 0,
+        "readed": 0,
+        "extra_version": 0
+      },
+      {
+        "header": {
+          "no_persist": 0,
+          "red_dot": 1,
+          "sync_once": 0
+        },
+        "setting": 0,
+        "message_id": 2111475599984730112,
+        "message_idstr": "2111475599984730112",
+        "message_seq": 11,
+        "client_msg_no": "4a3f9374a83b440291d822066f5cd9295",
+        "from_uid": "25916f7ffb7d4a6c860afcb9f4fa0d0b",
+        "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+        "channel_type": 2,
+        "timestamp": 1792249987,
+        "payload": {
+          "content": "msg999",
+          "extra": {
+            "sender_is_member": 0,
+            "sender_is_pretty": 0,
+            "sender_nickname_color": 1
+          },
+          "type": 1
+        },
+        "signal_payload": "",
+        "is_deleted": 0,
+        "readed": 0,
+        "extra_version": 0
+      },
+      {
+        "header": {
+          "no_persist": 0,
+          "red_dot": 1,
+          "sync_once": 0
+        },
+        "setting": 0,
+        "message_id": 2111486711266447360,
+        "message_idstr": "2111486711266447360",
+        "message_seq": 12,
+        "client_msg_no": "1da4841edc644e7bbd2ee0b08292e6395",
+        "from_uid": "25916f7ffb7d4a6c860afcb9f4fa0d0b",
+        "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+        "channel_type": 2,
+        "timestamp": 1792252636,
+        "payload": {
+          "content": "1111",
+          "extra": {
+            "sender_is_member": 0,
+            "sender_is_pretty": 0,
+            "sender_nickname_color": 1
+          },
+          "type": 1
+        },
+        "signal_payload": "",
+        "is_deleted": 0,
+        "readed": 0,
+        "extra_version": 0
+      },
+      {
+        "header": {
+          "no_persist": 0,
+          "red_dot": 1,
+          "sync_once": 0
+        },
+        "setting": 0,
+        "message_id": 2111998060341923840,
+        "message_idstr": "2111998060341923840",
+        "message_seq": 13,
+        "client_msg_no": "0bcc47a979ef460d847a9c290a9174975",
+        "from_uid": "25916f7ffb7d4a6c860afcb9f4fa0d0b",
+        "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+        "channel_type": 2,
+        "timestamp": 1792374551,
+        "payload": {
+          "content": "123123",
+          "extra": {
+            "sender_is_member": 0,
+            "sender_is_pretty": 0,
+            "sender_nickname_color": 1
+          },
+          "type": 1
+        },
+        "signal_payload": "",
+        "is_deleted": 0,
+        "readed": 0,
+        "extra_version": 0
+      },
+      {
+        "header": {
+          "no_persist": 0,
+          "red_dot": 1,
+          "sync_once": 0
+        },
+        "setting": 0,
+        "message_id": 2112161849800564736,
+        "message_idstr": "2112161849800564736",
+        "message_seq": 14,
+        "client_msg_no": "2492d763fea946768c488bad67bf33925",
+        "from_uid": "b70b1f5f2d0c4337ad42e87429b9af65",
+        "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+        "channel_type": 2,
+        "timestamp": 1792413601,
+        "payload": {
+          "content": "socket group check 78a3748a",
+          "type": 1
+        },
+        "signal_payload": "",
+        "is_deleted": 0,
+        "readed": 0,
+        "extra_version": 0
+      },
+      {
+        "header": {
+          "no_persist": 0,
+          "red_dot": 1,
+          "sync_once": 0
+        },
+        "setting": 0,
+        "message_id": 2112165339868344320,
+        "message_idstr": "2112165339868344320",
+        "message_seq": 15,
+        "client_msg_no": "50b8e01afe7346a69c38d5005e9bf7b95",
+        "from_uid": "b70b1f5f2d0c4337ad42e87429b9af65",
+        "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+        "channel_type": 2,
+        "timestamp": 1792414433,
+        "payload": {
+          "content": "Socket脚本测试：长连接、发送、接收已打通。验证标记 JX-SOCKET-1019",
+          "type": 1
+        },
+        "signal_payload": "",
+        "is_deleted": 0,
+        "readed": 0,
+        "extra_version": 0
+      },
+      {
+        "header": {
+          "no_persist": 0,
+          "red_dot": 1,
+          "sync_once": 0
+        },
+        "setting": 0,
+        "message_id": 2112171200955199488,
+        "message_idstr": "2112171200955199488",
+        "message_seq": 16,
+        "client_msg_no": "0f7651ce541949eda9253706b9ab469b5",
+        "from_uid": "25916f7ffb7d4a6c860afcb9f4fa0d0b",
+        "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+        "channel_type": 2,
+        "timestamp": 1792415831,
+        "payload": {
+          "content": "JX-LISTEN-1019-211711 realtime message 1",
+          "type": 1
+        },
+        "signal_payload": "",
+        "is_deleted": 0,
+        "readed": 0,
+        "extra_version": 0
+      },
+      {
+        "header": {
+          "no_persist": 0,
+          "red_dot": 1,
+          "sync_once": 0
+        },
+        "setting": 0,
+        "message_id": 2112171205648625664,
+        "message_idstr": "2112171205648625664",
+        "message_seq": 17,
+        "client_msg_no": "2666e0a6981a41148e4df3b5d01f5a0b5",
+        "from_uid": "25916f7ffb7d4a6c860afcb9f4fa0d0b",
+        "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+        "channel_type": 2,
+        "timestamp": 1792415832,
+        "payload": {
+          "content": "JX-LISTEN-1019-211711 realtime message 2",
+          "type": 1
+        },
+        "signal_payload": "",
+        "is_deleted": 0,
+        "readed": 0,
+        "extra_version": 0
+      }
+    ],
+    "is_member_map": {
+      "25916f7ffb7d4a6c860afcb9f4fa0d0b": 0,
+      "b70b1f5f2d0c4337ad42e87429b9af65": 0
+    },
+    "is_pretty_map": {
+      "25916f7ffb7d4a6c860afcb9f4fa0d0b": 0,
+      "b70b1f5f2d0c4337ad42e87429b9af65": 0
+    }
+  }
+}
