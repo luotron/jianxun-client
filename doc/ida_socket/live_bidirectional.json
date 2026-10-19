@@ -1,0 +1,25 @@
+{
+  "both_authenticated": true,
+  "forward_ack": {
+    "message_id": 2112161503648849920,
+    "client_seq": 1,
+    "message_seq": 4,
+    "reason_code": 1
+  },
+  "forward_received": {
+    "message_id": 2112161503648849920,
+    "content_matches": true
+  },
+  "reply_ack": {
+    "message_id": 2112161504504483840,
+    "client_seq": 1,
+    "message_seq": 5,
+    "reason_code": 1
+  },
+  "reply_received": {
+    "message_id": 2112161504504483840,
+    "content_matches": true
+  },
+  "same_socket_both_directions": true,
+  "both_still_connected": true
+}

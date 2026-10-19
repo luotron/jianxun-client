@@ -3,6 +3,10 @@
 对 `简讯` App（`api.jianxun01.com`，Flutter / Dart `3.12.2` AOT）登录会话加密流程的
 完整逆向分析，以及一个可直接发包、手机号 + 密码登录的 Python 实现。
 
+已补齐 IM 长连接：通过 AppVest 网关连接 WuKongIM v4，在同一个 socket 上完成
+消息发送、接收、回执和心跳；两个测试账号的私聊双向收发及测试群消息收发均已实测。
+详细证据与原生函数地址见 [Socket 分析报告](doc/2026-10-19_逆向-jianxun-socket-report.md)。
+
 > 已在真机抓包 (`cap_lo.pcap`) + 静态逆向 (`libapp.so`) 基础上**端到端验证**：
 > 运行 `main.py` 可真实登录并拿到 `token`。
 
@@ -264,6 +268,7 @@ baseUrl 全部放在全局配置文件 `config.json`** 里，直接改这个文�
   "token": "cb56ea29e63a4f53ab3bbf2354d0f122",
   "uid": "b70b1f5f2d0c4337ad42e87429b9af65",
   "im_addr": "tcp.jianxun01.com:15100",
+  "im_transport": "appvest",
   "account": {
     "username": "qwe778800",
     "phone": "",
@@ -288,8 +293,13 @@ baseUrl 全部放在全局配置文件 `config.json`** 里，直接改这个文�
   `status 110` 时自动带上它们重试。
 - `token` / `uid`：登录成功后自动写入 `config.json`；下次启动可直接复用
   token 免登录。
-- `im_addr`：悟空IM 长连接地址（发消息/图片用），默认
-  `tcp.jianxun01.com:15100`。
+- `im_addr`：悟空IM 逻辑目标地址，保持 `tcp.jianxun01.com:15100`；
+  AppVest 握手需要完整的域名和端口，不能用解析后的 IP 替换。
+- `im_transport`：默认 `appvest`，先发现可用网关，再完成 IM 认证。
+  `direct` 表示直连逻辑目标；本次线上验证使用 `appvest`。
+- `qlck`：可选对象，对应 `QLCKOptions`；默认启用网关发现。
+  手工固定网关时可设置 `{"gateway":"220.185.183.254:80","discover":false}`，
+  该地址是本次实测节点，后续以调度返回的节点为准。
 
 > 配置文件可以只写部分字段，缺省项自动用内置默认值补齐。
 > 可用环境变量 `JIANXUN_CONFIG=/path/to/other.json` 指定其它路径。
@@ -323,7 +333,10 @@ $ python main.py
 请选择操作:
   1. 查询群成员列表
   2. 查询群资料
-  3. 返回群列表
+  3. 发送文字消息
+  4. 发送图片
+  5. 查看历史并持续监听群消息
+  6. 返回群列表
 > 1
 ...
 ```
@@ -394,10 +407,15 @@ jianxun-login/
 │   ├── config.py     # 配置加载（config.json / $JIANXUN_CONFIG，缺省合并默认值）
 │   ├── crypto.py     # GCM 密钥派生 + 加解密 + 签名
 │   ├── client.py     # JianxunClient / login / 群查询 / 图片上传 / 错误处理
-│   └── im.py         # 悟空IM TCP 长连接（x25519 DH + AES 会话密钥 + 发消息）
+│   ├── im.py         # 悟空IM TCP 长连接（X25519 + AES、发送/接收、回执与心跳）
+│   └── qlck.py       # AppVest 网关发现、488 字节握手和双向 XOR 传输
 ├── tools/
 │   ├── decrypt_capture.py   # 解密抓包 data
-│   └── gen_device_id.py     # 生成可用的 device_id
+│   ├── gen_device_id.py     # 生成可用的 device_id
+│   ├── im_probe.py          # 复用已保存 token，独立测试单 socket 收发
+│   ├── analyze_im_capture.py # 重组 TCP、解析 AppVest / IM 抓包
+│   └── verify_qlck_native.py # ARM64 原生握手与 Python 字节对照
+├── tests/test_im.py  # 分帧、抓包、单连接并发收发/心跳测试
 ├── main.py           # 交互式命令行入口（默认复用 token，失效自动登录；群列表选择查询）
 ├── requirements.txt
 └── README.md
@@ -418,8 +436,8 @@ jianxun-login/
 - **业务 HTTP**：`https://api.jianxun01.com/v1`，加密信封与登录一致
   （`{"data":AES-GCM}` + `x-sign/x-nonce/x-timestamp/token`，响应也加密）。
   GET 无 body，`x-sign = md5("")`。
-- **实时消息**：**悟空IM TCP 长连接** `tcp.jianxun01.com:15100`
-  （`socketUrl`，配置可被服务端下发覆盖），自定义二进制协议：
+- **实时消息**：通过 **AppVest 网关**访问逻辑目标 `tcp.jianxun01.com:15100`，
+  网关首包后是 XOR 传输的 WuKongIM v4 二进制协议：
   `Connect→Connack`、`Send→Sendack`、`Recv→Recvack`、`Ping/Pong`。
 
 | 功能 | 通道/协议 | 接口 | 方法 | 说明 |
@@ -484,44 +502,64 @@ python main.py
     2. 查询群资料       (GET /groups/{groupNo})
     3. 发送文字消息     (悟空IM SendPacket)
     4. 发送图片         (/v1/file/upload 上传 → 悟空IM SendPacket)
-    5. 返回群列表
+    5. 查看历史并持续监听群消息 (先显示历史，再用同一长连接持续接收)
+    6. 返回群列表
 ```
 
-### 悟空IM（WuKongIM）长连接协议 —— `jianxun/im.py`
+### 悟空IM（WuKongIM）长连接 —— `jianxun/im.py` + `jianxun/qlck.py`
 
-> **重要**：2026-10 真机抓包（`tcpdump/cap_im*.pcap`）发现线上协议与开源
-> `wukongimfluttersdk` **不同**，是服务端魔改版。本节按抓包字节逐一还原；
-> 帧格式已明确，**载荷加密算法尚未还原**，故 `im.py` 目前只能解析结构，
-> `send` 会明确报错而不是发出错误数据。
+2026-10-19 已完成线上验证：连接、群文本发送、第二账号接收解密、私聊双向收发。
+底层链路为 `Flutter → flutter_qlck → AppVest → WuKongIM v4`。
+本次实测数据网关为 `220.185.183.254:80`，逻辑目标保持
+`tcp.jianxun01.com:15100`。此前将独立的 7007 流误判为 IM 协议，本节已更正。
 
-**服务器地址**：`tcp.jianxun01.com:7007`（App 用百度 HTTPDNS
-`olimenew.baidu.com` 解析到 `123.60.87.106`，端口 7007；域名系统 DNS 解析
-到 Clash 假 IP `198.18.3.183`）。备用环境 `tcp.jianxun02.com:5100`
-（154.23.224.149）。`jx.json` 里的 `socketUrl` 虽写着 `:15100`，实际流量走
-**7007**。境外 IP 连接该服务器会被静默丢弃/重置（需国内网络或代理）。
+`libcf-msc.so` 的原生函数构造 488 字节网关握手，后续字节流与设备指纹
+首字符的 ASCII 值异或；还原后是 `CONNECT/CONNACK`、`SEND/SENDACK`、
+`RECV/RECVACK` 和 `PING/PONG`。IM 使用 X25519 协商及 AES-CBC 消息加密。
+文本载荷为 `{"content":"...","type":1}`，图片载荷为
+`{"width":0,"height":0,"url":"...","type":2}`。
 
-**帧结构（抓包还原）**：
+客户端只有一个后台读取线程，把 SENDACK 和收到的消息分别分发；发送、接收和
+心跳共用同一个 socket。等待接收超时不会关闭连接。发送成功以
+`ack.success`（`reason_code == 1`）为准；发送回执超时表示接收状态未知，
+客户端不会自动重发。
 
+复用当前 `config.json` 中已保存的 `uid/token`，无需先调用 HTTP 群列表接口：
+
+```powershell
+# 连接并向测试群发送一条文字，输出服务端 SENDACK
+python tools/im_probe.py --channel 9c509b80996e4ee8a1d315063c9b940a --channel-type 2 --text "Socket脚本测试" --out doc/ida_socket/manual_send.json
+
+# 保持连接并等待一条推送，期间可从另一个账号向该账号或其所在群发消息
+python tools/im_probe.py --receive 60 --out doc/ida_socket/manual_receive.json
+
+# 发送后在同一个 socket 上等待一条推送
+python tools/im_probe.py --channel 9c509b80996e4ee8a1d315063c9b940a --text "单连接收发测试" --receive 60
 ```
-信封(小帧): [0x80][u8 总长(含类型字节)][u8 类型字节][内容]
-帧头(内容开头): [u8 a][u8 b][(u8 c)][u56 BE 计数器][u32 字段1][u32=0x14][u32 魔数 0x8c7ac0b3][载荷]
+
+`--receive` 收到一条推送即结束，超时返回非零退出码；发送后不保证收到自己的
+消息回推，收消息测试应由另一个账号发消息。私聊使用 `--channel-type 1`，
+`--channel` 填对方 uid。其他账号可用 `--config` 指定各自的配置文件。
+
+历史查看、持续监听和消息发送统一使用交互式主程序：
+
+```powershell
+python main.py
 ```
 
-| 帧 | a b (c) | 说明 |
-|----|---------|------|
-| connect | `01 01` | 载荷 = 32位hex安装ID + 128字节密文(客户端DH公钥+加密凭证?) |
-| connack | `13 01` | 载荷 = 密文（含服务端DH公钥+salt，加密算法未知） |
-| 消息(recv) | `01 03 01` | 载荷 = 密文（~850字节/条，AES-CBC?） |
-| sendack | `19 01` | 载荷 = 16字节 MD5（消息去重标识） |
+选择「1 查询群」→ 选择群 →「5 查看历史并持续监听群消息」，输入历史条数
+（默认 20，输入 0 只监听新消息）。程序先建立 IM 长连接，让后台开始缓存推送，
+然后调用 `/v1/message/channel/sync` 显示历史，最后持续打印该群的新消息。
+按 Ctrl+C 返回群菜单，保留当前连接，可继续发文字、图片或重新监听。
+离开该群才关闭连接。历史和实时推送重叠的消息按 message_id 去重，
+其他群与私聊推送不显示。历史接口超时会显示错误并继续实时监听。
+历史消息和新消息均显示时间、发送者、消息序号及文字/图片地址。
 
-- 计数器从 ~4989 起，每帧 +2；`u32=0x14` 与魔数 `0x8c7ac0b3` 为固定值
-  （魔数非 CRC32，经校验）。
-- 消息内容类型仍是悟空IM 体系：文本 `{"content":"...","type":1}`、
-  图片 `{"width","height","url","type":2}`（明文 JSON 经加密后入载荷）。
-
-**已排除的加密假设**（均解密失败）：GCM key `3a7b8c9d...`、key 片段 `A`、
-`aesKey 4ciYaGQMpZemFjCB`、md5/sha256(token|uid) 派生、x25519 静态服务端
-公钥假设下的 DH、AES-ECB/CBC 常见 IV、AES-GCM(nonce 前/后置)。
+最新群发送回执保存在 [live_group_script.json](doc/ida_socket/live_group_script.json)：
+标记 `JX-SOCKET-1019`，`message_id=2112165339868344320`，
+`message_seq=15`，`reason_code=1`。第二账号群消息接收证据见
+[live_group_message.json](doc/ida_socket/live_group_message.json)，双向私聊证据见
+[live_bidirectional.json](doc/ida_socket/live_bidirectional.json)。
 
 **图片上传（HTTP，已实测，见 `cap_http.pcap`）**：
 
@@ -533,11 +571,9 @@ POST <该url>  multipart 字段 file（x-sign 头为字面量 "x-sign"，与 App
            "url":"https://zy-jp-prod2.oss-ap-northeast-1.aliyuncs.com/chat/2/<groupNo>/<uuid>"}
 ```
 
-> 下一步（如需打通发消息）：在可连上 7007 的网络环境（国内）下重放我方
-> 构造的 connect 帧，用服务端 connack 响应迭代握手格式；或对 libapp.so
-> 中 IM 加密函数（`send.queue.waitConnack` / `clientKey` 相关代码）做静态
-> 还原。抓包原始文件已入库：`tcpdump/cap_im.pcap`（重连握手）、
-> `cap_im4.pcap`（发消息流量）。
+图片载荷的加解密和收发在本地 socket 测试中覆盖；本次没有重新验证 HTTP 图片
+上传到线上图片送达的完整流程。群列表、群成员等 HTTP 功能保留原有实现，
+其可用性与独立 socket 脚本分别验证。
 
 ```python
 from jianxun import JianxunClient
@@ -558,14 +594,15 @@ for m in members:                    # GroupMember: uid/name/role/raw
 
 ### 抓包命令（在已 root 真机 / 模拟器上）
 
-和登录一样，HTTP 走本机代理、在 `lo` 上是明文；实时消息是裸 TCP，需另抓其端口。
+和登录一样，HTTP 走本机代理、在 `lo` 上可见应用层密文；实时消息需同时抓取
+AppVest 数据网关的 80 端口及控制通道的 8080 端口。
 
 ```bash
 # ① HTTP 接口（群列表 / 群成员 / 图片上传 / 会话&消息同步）—— 与登录相同，抓 lo
 adb shell su -c "tcpdump -i lo -s 0 -w /sdcard/cap_http.pcap"
 
-# ② 实时消息（悟空IM 长连接：发/收群消息）—— 裸 TCP 二进制，抓 IM 端口（全网卡）
-adb shell su -c "tcpdump -i any -s 0 -w /sdcard/cap_im.pcap 'tcp port 15100 or tcp port 15200 or tcp port 5100'"
+# ② 实时消息和 AppVest 调度（全网卡）
+adb shell su -c "tcpdump -i any -s 0 -w /sdcard/cap_im.pcap 'tcp port 80 or tcp port 8080 or tcp port 15100'"
 
 # 结束后拉取
 adb pull /sdcard/cap_http.pcap
@@ -583,10 +620,13 @@ python tools/decrypt_capture.py '<data字段base64>'
 # 或： echo '{"data":"..."}' | python tools/decrypt_capture.py
 ```
 
-> 若 `cap_im.pcap` 里 15100 端口为 TLS（握手可见 `ClientHello`），需让代理
-> 对该 TCP 做 MITM 才能看明文；若是明文二进制（悟空IM 默认），可直接解析
-> `Connect/Send/Recv` 包。抓到后我再据此实现 `send_group_message` /
-> `recv` 等。
+已有抓包可直接离线分析。`cap_im4.pcap` 的设备指纹首字符为 `E`，异或值为
+`0x45`；其他抓包应按各自的握手指纹选择异或值：
+
+```powershell
+python tools/analyze_im_capture.py tcpdump/cap_im4.pcap --peer 106.53.220.67 --xor 0x45 --out doc/ida_socket/cap_im4_decoded.json
+python -m unittest discover -s tests -v
+```
 
 ---
 

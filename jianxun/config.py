@@ -22,7 +22,9 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from .qlck import QLCKOptions
 
 # Project root = parent of this package directory.
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -36,6 +38,8 @@ _DEFAULTS = {
     "token": "",                # session token, persisted here after a successful login
     "uid": "",                  # account uid, persisted here after a successful login
     "im_addr": "tcp.jianxun01.com:15100",  # WuKongIM 长连接地址（悟空IM）
+    "im_transport": "appvest",
+    "qlck": {},
     "account": {
         "username": "qwe778800",   # username account; takes precedence over phone
         "phone": "",               # phone login: wire username = country_code + phone
@@ -93,6 +97,8 @@ class Config:
     token: str = ""
     uid: str = ""
     im_addr: str = ""
+    im_transport: str = "appvest"
+    qlck: QLCKOptions = field(default_factory=QLCKOptions)
     path: str = ""
 
     @classmethod
@@ -111,6 +117,8 @@ class Config:
             token=data.get("token", ""),
             uid=data.get("uid", ""),
             im_addr=data.get("im_addr", ""),
+            im_transport=data.get("im_transport", "appvest"),
+            qlck=QLCKOptions(**data.get("qlck", {})),
             path=path if os.path.isfile(path) else "",
         )
 

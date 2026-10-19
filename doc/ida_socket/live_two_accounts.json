@@ -1,0 +1,17 @@
+{
+  "sender_connected": true,
+  "receiver_connected": true,
+  "send_ack": {
+    "message_id": 2112160606931824640,
+    "client_seq": 1,
+    "message_seq": 3,
+    "reason_code": 1
+  },
+  "receive": {
+    "message_id": 2112160606931824640,
+    "message_seq": 3,
+    "message_id_matches_ack": true,
+    "content_matches": true,
+    "channel_type": 1
+  }
+}

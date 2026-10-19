@@ -1,0 +1,16 @@
+[
+  {
+    "gateway": "220.185.183.254:443",
+    "preamble_eof": true,
+    "reply": ""
+  },
+  {
+    "gateway": "106.53.220.67:443",
+    "preamble_eof": true,
+    "reply": ""
+  },
+  {
+    "gateway": "220.185.183.254:15100",
+    "error": "TimeoutError:timed out"
+  }
+]

@@ -1,9 +1,8 @@
 """
 简讯 App 的 WuKongIM v4 TCP 客户端。
 
-App 会把 IM TCP 流量封装进 QLCK 隧道并发往 7007。隧道内仍是标准
-``wukongimfluttersdk`` 协议，因此本模块直接连接实际 IM 端口 15100，避免
-依赖 App 私有的 QLCK 传输层。
+支持直连和 AppVest/QLCK 网关。一个持久 socket 由后台线程统一读取，
+发送回执和推送消息分别分发，空闲时持续发送心跳。
 """
 from __future__ import annotations
 
@@ -12,17 +11,21 @@ import hashlib
 import hmac
 import json
 import socket
+import select
 import struct
+import threading
 import time
 import uuid
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from Crypto.Cipher import AES
 from Crypto.Protocol import DH
 from Crypto.PublicKey import ECC
 from Crypto.Util.Padding import pad, unpad
+
+from .qlck import QLCKOptions, QLCKSocket, gateway_candidates
 
 
 DEFAULT_IM_ADDR = "tcp.jianxun01.com:15100"
@@ -43,6 +46,14 @@ _PACKET_PONG = 8
 _PACKET_DISCONNECT = 9
 
 _REASON_SUCCESS = 1
+_REASON_NAMES = {
+    1: "Success", 2: "AuthFail", 3: "SubscriberNotExist", 4: "InBlacklist",
+    5: "ChannelNotExist", 7: "SenderOffline", 8: "MsgKeyError",
+    9: "PayloadDecodeError", 11: "NotAllowSend", 12: "ConnectKick",
+    13: "NotInWhitelist", 14: "QueryTokenError", 15: "SystemError",
+    16: "ChannelIDError", 19: "Ban", 22: "RateLimit", 24: "Disband",
+    25: "SendBan",
+}
 
 # The public DNS names can resolve to Clash fake IPs. These addresses were
 # obtained from the App's HTTPDNS response and are also visible in captures.
@@ -60,12 +71,24 @@ class WKIMNotImplemented(WKIMError):
     """Kept for callers of older versions; all required IM operations exist."""
 
 
+class WKIMTimeout(WKIMError):
+    """An operation timed out without closing the persistent connection."""
+
+
 @dataclass(frozen=True)
 class SendAck:
     message_id: int
     client_seq: int
     message_seq: int
     reason_code: int
+
+    @property
+    def success(self) -> bool:
+        return self.reason_code == _REASON_SUCCESS
+
+    @property
+    def reason_name(self) -> str:
+        return _REASON_NAMES.get(self.reason_code, f"Unknown({self.reason_code})")
 
 
 @dataclass(frozen=True)
@@ -124,12 +147,14 @@ def _encode_remaining_length(length: int) -> bytes:
     if length < 0 or length > _MAX_FRAME_SIZE:
         raise ValueError(f"无效的 IM 帧长度: {length}")
     encoded = bytearray()
-    while length > 0:
+    while True:
         digit = length % 0x80
         length //= 0x80
         if length:
             digit |= 0x80
         encoded.append(digit)
+        if not length:
+            break
     return bytes(encoded)
 
 
@@ -147,8 +172,10 @@ class WKIMClient:
     uid: str = ""
     token: str = ""
     device_id: str = ""
+    device_flag: int = 0
+    qlck: QLCKOptions | None = None
 
-    _sock: socket.socket | None = field(default=None, init=False, repr=False)
+    _sock: socket.socket | QLCKSocket | None = field(default=None, init=False, repr=False)
     _connected: bool = field(default=False, init=False)
     _buffer: bytearray = field(default_factory=bytearray, init=False, repr=False)
     _client_seq: int = field(default=0, init=False)
@@ -161,6 +188,17 @@ class WKIMClient:
     )
     _pending_acks: dict[int, SendAck] = field(default_factory=dict, init=False, repr=False)
     _next_ping: float = field(default=0.0, init=False, repr=False)
+    _reader_thread: threading.Thread | None = field(default=None, init=False, repr=False)
+    _stop: threading.Event = field(default_factory=threading.Event, init=False, repr=False)
+    _condition: threading.Condition = field(default_factory=threading.Condition, init=False, repr=False)
+    _write_lock: Any = field(default_factory=threading.Lock, init=False, repr=False)
+    _request_lock: Any = field(default_factory=threading.Lock, init=False, repr=False)
+    _failure: WKIMError | None = field(default=None, init=False, repr=False)
+    _gateway: str = field(default="", init=False)
+
+    @property
+    def gateway(self) -> str:
+        return self._gateway
 
     @property
     def connected(self) -> bool:
@@ -169,9 +207,30 @@ class WKIMClient:
     def connect(self) -> None:
         if not self.uid or not self.token:
             raise WKIMError("缺少 IM uid/token")
-
         self.close()
+        if self.timeout <= 0:
+            raise ValueError("IM timeout must be positive")
+        if not 0 <= self.device_flag <= 255:
+            raise ValueError("Invalid IM device_flag")
+        candidates = (gateway_candidates(self.qlck, self.device_id, self.timeout)
+                      if self.qlck else [""])
+        errors = []
+        for gateway in candidates:
+            self._gateway = gateway
+            try:
+                self._connect_once()
+                return
+            except (OSError, ValueError, WKIMError) as exc:
+                self.close()
+                errors.append(f"{gateway or self.addr}: {exc}")
+                if "reasonCode=" in str(exc):
+                    break  # Retrying a rejected credential on other nodes cannot help.
+        raise WKIMError("IM 连接未完成: " + "; ".join(errors))
+
+    def _connect_once(self) -> None:
         host, port = self._split_addr(self.addr)
+        self._stop.clear()
+        self._failure = None
         self._sock = self._dial(host, port)
         self._buffer.clear()
         self._pending_messages.clear()
@@ -188,7 +247,7 @@ class WKIMClient:
             wire_device_id += "F"
 
         body = (
-            bytes([_PROTO_VERSION, 0])
+            bytes([_PROTO_VERSION, self.device_flag])
             + _pack_string(wire_device_id)
             + _pack_string(self.uid)
             + _pack_string(self.token)
@@ -212,6 +271,10 @@ class WKIMClient:
 
         self._connected = True
         self._next_ping = time.monotonic() + _HEARTBEAT_SECONDS
+        self._reader_thread = threading.Thread(
+            target=self._reader_loop, name="jianxun-im-reader", daemon=True
+        )
+        self._reader_thread.start()
 
     @staticmethod
     def _split_addr(addr: str) -> tuple[str, int]:
@@ -223,9 +286,16 @@ class WKIMClient:
             port = int(port_text)
         except ValueError as exc:
             raise WKIMError(f"无效的 im_addr: {addr!r}") from exc
-        return host, port
+        if not 0 < port <= 65535:
+            raise WKIMError(f"无效的 im_addr: {addr!r}")
+        return host.strip("[]"), port
 
-    def _dial(self, host: str, port: int) -> socket.socket:
+    def _dial(self, host: str, port: int) -> socket.socket | QLCKSocket:
+        if self.qlck is not None:
+            return QLCKSocket.connect(
+                host, port, replace(self.qlck, gateway=self._gateway),
+                self.timeout, self.device_id,
+            )
         candidates = [(host, port)]
         fallback = _FALLBACK_ENDPOINTS.get(port)
         if fallback and fallback not in candidates:
@@ -237,8 +307,6 @@ class WKIMClient:
             sock.settimeout(self.timeout)
             try:
                 sock.connect((candidate_host, candidate_port))
-                if candidate_host != host:
-                    self.addr = f"{candidate_host}:{candidate_port}"
                 return sock
             except OSError as exc:
                 errors.append(f"{candidate_host}:{candidate_port}: {exc}")
@@ -251,15 +319,14 @@ class WKIMClient:
             self._proto_version = min(reader.u8(), _PROTO_VERSION)
         time_diff = reader.u64()
         reason_code = reader.u8()
-        server_key_text = reader.string()
-        salt = reader.string()
-        if self._proto_version >= 4:
-            reader.u64()  # node ID
-
         if reason_code != _REASON_SUCCESS:
             raise WKIMError(
                 f"IM 鉴权失败: reasonCode={reason_code}, timeDiff={time_diff}"
             )
+        server_key_text = reader.string()
+        salt = reader.string()
+        if self._proto_version >= 4:
+            reader.u64()  # node ID
         if self._dh_private is None:
             raise WKIMError("IM X25519 私钥状态丢失")
 
@@ -282,16 +349,36 @@ class WKIMClient:
 
     def close(self) -> None:
         self._connected = False
+        self._stop.set()
+        sock, self._sock = self._sock, None
+        if sock is not None:
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            sock.close()
+        with self._condition:
+            self._condition.notify_all()
+        thread = self._reader_thread
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=2)
+        self._reader_thread = None
         self._aes_key = b""
         self._aes_iv = b""
         self._dh_private = None
         self._buffer.clear()
-        if self._sock is not None:
-            try:
-                self._sock.close()
-            except OSError:
-                pass
-            self._sock = None
+
+    def _reader_loop(self) -> None:
+        try:
+            while not self._stop.is_set():
+                self._pump_one(None)
+        except (WKIMError, OSError, ValueError, UnicodeError) as exc:
+            if not self._stop.is_set():
+                self._failure = exc if isinstance(exc, WKIMError) else WKIMError(str(exc))
+        finally:
+            self.close()
+            with self._condition:
+                self._condition.notify_all()
 
     def __enter__(self) -> "WKIMClient":
         if not self.connected:
@@ -302,13 +389,16 @@ class WKIMClient:
         self.close()
 
     def _send_raw(self, data: bytes) -> None:
-        if self._sock is None:
-            raise WKIMError("IM socket 未连接")
         try:
-            self._sock.sendall(data)
+            with self._write_lock:
+                sock = self._sock
+                if sock is None:
+                    raise WKIMError("IM socket 未连接")
+                sock.sendall(data)
         except OSError as exc:
+            self._failure = WKIMError(f"IM socket 发送失败: {exc}")
             self.close()
-            raise WKIMError(f"IM socket 发送失败: {exc}") from exc
+            raise self._failure from exc
 
     def _extract_frame(self) -> tuple[int, int, bytes] | None:
         if not self._buffer:
@@ -354,26 +444,27 @@ class WKIMClient:
 
             now = time.monotonic()
             if deadline is not None and now >= deadline:
-                raise WKIMError("等待 IM 数据超时")
+                raise WKIMTimeout("等待 IM 数据超时")
             wake_at = self._next_ping if self._connected else None
             if deadline is not None:
                 wake_at = min(wake_at, deadline) if wake_at else deadline
             wait = None if wake_at is None else max(0.05, wake_at - now)
-            self._sock.settimeout(wait)
+            sock = self._sock
             try:
-                chunk = self._sock.recv(65536)
+                readable, _, _ = select.select([sock], [], [], wait)
+                if not readable:
+                    raise socket.timeout()
+                chunk = sock.recv(65536)
             except socket.timeout:
                 now = time.monotonic()
                 if self._connected and now >= self._next_ping:
                     self._send_raw(_encode_frame(_PACKET_PING))
                     self._next_ping = now + _HEARTBEAT_SECONDS
                     continue
-                raise WKIMError("等待 IM 数据超时")
-            except OSError as exc:
-                self.close()
+                raise WKIMTimeout("等待 IM 数据超时")
+            except (OSError, ValueError) as exc:
                 raise WKIMError(f"IM socket 接收失败: {exc}") from exc
             if not chunk:
-                self.close()
                 raise WKIMError("IM 服务端已关闭连接")
             self._buffer.extend(chunk)
 
@@ -416,7 +507,13 @@ class WKIMClient:
         return self._send_payload(channel_id, channel_type, payload)
 
     def _send_payload(self, channel_id: str, channel_type: int, payload: str) -> SendAck:
+        with self._request_lock:
+            return self._send_payload_serial(channel_id, channel_type, payload)
+
+    def _send_payload_serial(self, channel_id: str, channel_type: int, payload: str) -> SendAck:
         self._require_connected()
+        if not channel_id or not 0 <= channel_type <= 255:
+            raise ValueError("无效的 IM channel_id/channel_type")
         self._client_seq = (self._client_seq + 1) & 0xFFFFFFFF
         if self._client_seq == 0:
             self._client_seq = 1
@@ -442,21 +539,30 @@ class WKIMClient:
         # showUnread is true in WKSendOptions' default MessageHeader.
         self._send_raw(_encode_frame(_PACKET_SEND, body, flags=0x02))
         deadline = time.monotonic() + self.timeout
-        while True:
-            ack = self._pending_acks.pop(client_seq, None)
-            if ack is not None:
-                return ack
-            self._pump_one(deadline)
+        with self._condition:
+            while True:
+                ack = self._pending_acks.pop(client_seq, None)
+                if ack is not None:
+                    return ack
+                self._require_connected()
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise WKIMTimeout(f"等待 SENDACK 超时: clientSeq={client_seq}（服务端接收状态未知，请勿自动重发）")
+                self._condition.wait(remaining)
 
     def recv_message(self, timeout: float | None = None) -> RecvMessage:
         """Wait for one server-pushed message and send its RecvAck."""
-        self._require_connected()
-        if self._pending_messages:
-            return self._pending_messages.popleft()
+        if timeout is not None and timeout < 0:
+            raise ValueError("IM receive timeout must be non-negative")
         deadline = None if timeout is None else time.monotonic() + timeout
-        while not self._pending_messages:
-            self._pump_one(deadline)
-        return self._pending_messages.popleft()
+        with self._condition:
+            while not self._pending_messages:
+                self._require_connected()
+                remaining = None if deadline is None else deadline - time.monotonic()
+                if remaining is not None and remaining <= 0:
+                    raise WKIMTimeout("等待 IM 消息超时")
+                self._condition.wait(remaining)
+            return self._pending_messages.popleft()
 
     def _pump_one(self, deadline: float | None) -> None:
         first, packet_type, body = self._read_frame(deadline)
@@ -473,17 +579,23 @@ class WKIMClient:
                 message_seq=reader.u32(),
                 reason_code=reader.u8(),
             )
-            self._pending_acks[ack.client_seq] = ack
+            with self._condition:
+                self._pending_acks[ack.client_seq] = ack
+                # Bound unsolicited/late ACK storage on a long-lived connection.
+                while len(self._pending_acks) > 128:
+                    self._pending_acks.pop(next(iter(self._pending_acks)))
+                self._condition.notify_all()
             return
         if packet_type == _PACKET_RECV:
             message = self._decode_recv(first, body)
-            self._pending_messages.append(message)
+            with self._condition:
+                self._pending_messages.append(message)
+                self._condition.notify_all()
             return
         if packet_type == _PACKET_DISCONNECT:
             reader = _Reader(body)
             reason_code = reader.u8()
             reason = reader.string()
-            self.close()
             raise WKIMError(
                 f"IM 服务端断开连接: reasonCode={reason_code}, reason={reason}"
             )
@@ -547,5 +659,7 @@ class WKIMClient:
         )
 
     def _require_connected(self) -> None:
+        if self._failure is not None:
+            raise self._failure
         if not self.connected or self._sock is None:
             raise WKIMError("IM 尚未连接")

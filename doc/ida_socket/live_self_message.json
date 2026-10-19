@@ -1,0 +1,10 @@
+{
+  "connected": true,
+  "send_ack": {
+    "message_id": 2112159293061898240,
+    "client_seq": 1,
+    "message_seq": 0,
+    "reason_code": 13
+  },
+  "error": "WKIMTimeout:\u7b49\u5f85 IM \u6d88\u606f\u8d85\u65f6"
+}

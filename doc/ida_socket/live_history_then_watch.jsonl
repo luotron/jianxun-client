@@ -1,0 +1,4 @@
+{"event": "connected", "gateway": "220.185.183.254:80"}
+{"event": "history_error", "error": "ReadTimeout: HTTPSConnectionPool(host='api.jianxun01.com', port=443): Read timed out. (read timeout=20)"}
+{"event": "listening", "channel_id": "9c509b80996e4ee8a1d315063c9b940a", "channel_type": 2, "gateway": "220.185.183.254:80"}
+{"event": "message", "message": {"message_id": 2112172869071839232, "message_seq": 18, "channel_id": "9c509b80996e4ee8a1d315063c9b940a", "channel_type": 2, "from_uid": "25916f7ffb7d4a6c860afcb9f4fa0d0b", "timestamp": 1792416228, "payload": {"content": "JX-WATCH-1019-212323 history then realtime passed", "type": 1}}}

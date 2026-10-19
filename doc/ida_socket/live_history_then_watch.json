@@ -1,0 +1,35 @@
+{
+  "tested_at": "2026-10-19T21:23:23+0800",
+  "exit_code": 0,
+  "marker": "JX-WATCH-1019-212323",
+  "history_count": 0,
+  "history_sequences": [],
+  "contains_prior_socket_marker": false,
+  "realtime_messages": [
+    {
+      "message_id": 2112172869071839232,
+      "message_seq": 18,
+      "channel_id": "9c509b80996e4ee8a1d315063c9b940a",
+      "channel_type": 2,
+      "from_uid": "25916f7ffb7d4a6c860afcb9f4fa0d0b",
+      "timestamp": 1792416228,
+      "payload": {
+        "content": "JX-WATCH-1019-212323 history then realtime passed",
+        "type": 1
+      }
+    }
+  ],
+  "send_ack": {
+    "message_id": 2112172869071839232,
+    "client_seq": 1,
+    "message_seq": 18,
+    "reason_code": 1
+  },
+  "errors": [
+    {
+      "event": "history_error",
+      "error": "ReadTimeout: HTTPSConnectionPool(host='api.jianxun01.com', port=443): Read timed out. (read timeout=20)"
+    }
+  ],
+  "history_then_live_succeeded": false
+}

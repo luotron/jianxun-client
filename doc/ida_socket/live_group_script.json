@@ -1,0 +1,12 @@
+{
+  "connected": true,
+  "gateway": "220.185.183.254:80",
+  "send_ack": {
+    "message_id": 2112165339868344320,
+    "client_seq": 1,
+    "message_seq": 15,
+    "reason_code": 1
+  },
+  "send_succeeded": true,
+  "send_reason": "Success"
+}

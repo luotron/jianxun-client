@@ -1,0 +1,43 @@
+{
+  "tested_at": "2026-10-19T21:17:10+0800",
+  "channel_type": 2,
+  "received": [
+    {
+      "message_id": 2112171200955199488,
+      "message_seq": 16,
+      "channel_type": 2,
+      "content": {
+        "content": "JX-LISTEN-1019-211711 realtime message 1",
+        "type": 1
+      }
+    },
+    {
+      "message_id": 2112171205648625664,
+      "message_seq": 17,
+      "channel_type": 2,
+      "content": {
+        "content": "JX-LISTEN-1019-211711 realtime message 2",
+        "type": 1
+      }
+    }
+  ],
+  "marker": "JX-LISTEN-1019-211711",
+  "acks": [
+    {
+      "message_id": 2112171200955199488,
+      "client_seq": 1,
+      "message_seq": 16,
+      "reason_code": 1
+    },
+    {
+      "message_id": 2112171205648625664,
+      "client_seq": 2,
+      "message_seq": 17,
+      "reason_code": 1
+    }
+  ],
+  "same_receiver_socket": true,
+  "still_connected": true,
+  "both_authenticated": true,
+  "continuous_receive_succeeded": true
+}
