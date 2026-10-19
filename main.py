@@ -31,7 +31,7 @@ from jianxun import (
 )
 from jianxun.client import jpeg_dimensions
 from jianxun.config import Config
-from jianxun.im import WKIMClient, WKIMError, WKIMNotImplemented, DEFAULT_IM_ADDR
+from jianxun.im import WKIMClient, WKIMError, DEFAULT_IM_ADDR
 
 
 def ask(prompt: str, default: str = "") -> str:
@@ -171,8 +171,9 @@ def group_view_menu(client: JianxunClient, group: dict, cfg: Config) -> None:
         print("  2. 查询群资料")
         print("  3. 发送文字消息")
         print("  4. 发送图片")
-        print("  5. 返回群列表")
-        choice = ask("> ", "5")
+        print("  5. 等待接收消息")
+        print("  6. 返回群列表")
+        choice = ask("> ", "6")
         try:
             if choice == "1":
                 print(f"[*] 自动翻页拉取群成员列表 ...")
@@ -186,7 +187,7 @@ def group_view_menu(client: JianxunClient, group: dict, cfg: Config) -> None:
                 if not text:
                     continue
                 ack = ensure_im().send_text(group_no, text)
-                if ack.reason_code == 0:
+                if ack.reason_code == 1:
                     print(f"[+] 已发送: messageID={ack.message_id} "
                           f"messageSeq={ack.message_seq} clientSeq={ack.client_seq}")
                 else:
@@ -200,19 +201,30 @@ def group_view_menu(client: JianxunClient, group: dict, cfg: Config) -> None:
                 width, height = jpeg_dimensions(file_path)
                 print(f"[*] 上传成功: {up['url']}")
                 ack = ensure_im().send_image(group_no, up["url"], width, height)
-                if ack.reason_code == 0:
+                if ack.reason_code == 1:
                     print(f"[+] 已发送图片: messageID={ack.message_id} "
                           f"messageSeq={ack.message_seq} ({width}x{height})")
                 else:
                     print(f"[!] 发送失败: reasonCode={ack.reason_code}")
             elif choice == "5":
+                wait_seconds = float(ask("等待秒数 [30]: ", "30"))
+                print("[*] 等待新消息 ...")
+                msg = ensure_im().recv_message(wait_seconds)
+                print(json.dumps({
+                    "message_id": msg.message_id,
+                    "message_seq": msg.message_seq,
+                    "message_time": msg.message_time,
+                    "from_uid": msg.from_uid,
+                    "channel_id": msg.channel_id,
+                    "channel_type": msg.channel_type,
+                    "content": msg.content,
+                }, indent=2, ensure_ascii=False))
+            elif choice == "6":
                 return
             else:
                 print("[!] 无效选项")
         except (ApiError, ValueError, WKIMError, OSError) as e:
             print(f"[!] 操作失败: {e}")
-            if isinstance(e, WKIMNotImplemented):
-                print("    提示: IM 消息加密协议尚未完全还原，见 README「线上 IM 协议」。")
             if im_client is not None:
                 im_client.close()
                 im_client = None
