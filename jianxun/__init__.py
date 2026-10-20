@@ -1,6 +1,6 @@
 """jianxun - reverse-engineered client for the 简讯 IM app login protocol."""
 from .client import (
-    JianxunClient, LoginResult, DeviceInfo, GroupMember, jpeg_dimensions,
+    JianxunClient, LoginResult, DeviceInfo, GroupMember, image_dimensions, jpeg_dimensions,
     NewDeviceVerifyRequired, CaptchaRequired, ApiError,
 )
 from .config import Config, Account, Device, CONFIG
@@ -13,6 +13,7 @@ __all__ = [
     "LoginResult",
     "DeviceInfo",
     "GroupMember",
+    "image_dimensions",
     "jpeg_dimensions",
     "NewDeviceVerifyRequired",
     "CaptchaRequired",

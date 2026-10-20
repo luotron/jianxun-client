@@ -1,0 +1,27 @@
+{
+  "tested_at": "2026-10-20T16:50:43+0800",
+  "entry_point": "main.py group menu option 4",
+  "upload": {
+    "path": "file/preview/chat/2/9c509b80996e4ee8a1d315063c9b940a/d6dc1059501b4fe7b274d9dbafc955ed",
+    "url": "https://zy-jp-prod2.oss-ap-northeast-1.aliyuncs.com/chat/2/9c509b80996e4ee8a1d315063c9b940a/d6dc1059501b4fe7b274d9dbafc955ed"
+  },
+  "send_calls": 1,
+  "received": {
+    "message_id": 2112466542443540480,
+    "message_seq": 22,
+    "payload": {
+      "width": 320,
+      "height": 180,
+      "url": "file/preview/chat/2/9c509b80996e4ee8a1d315063c9b940a/d6dc1059501b4fe7b274d9dbafc955ed",
+      "type": 2
+    }
+  },
+  "preview": {
+    "status": 200,
+    "content_type": "application/octet-stream",
+    "bytes": 762,
+    "matches_uploaded_png": true,
+    "sha256": "6c951d49f6699b4d479fd993ddcd803c085ade1d1f920cc239234996bae0acc1"
+  },
+  "succeeded": true
+}

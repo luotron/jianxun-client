@@ -34,7 +34,7 @@ from requests.exceptions import RequestException
 from jianxun import (
     JianxunClient, DeviceInfo, ApiError, NewDeviceVerifyRequired, CaptchaRequired,
 )
-from jianxun.client import jpeg_dimensions
+from jianxun.client import image_dimensions
 from jianxun.config import Config
 from jianxun.im import WKIMClient, WKIMError, WKIMTimeout, DEFAULT_IM_ADDR
 
@@ -289,11 +289,16 @@ def group_view_menu(client: JianxunClient, group: dict, cfg: Config) -> None:
                     file_path = ask("本地图片路径: ")
                     if not file_path:
                         continue
+                    width, height = image_dimensions(file_path)
+                    if width <= 0 or height <= 0:
+                        raise ValueError("无法读取图片尺寸，请使用完整的 PNG 或 JPEG 图片")
                     print("[*] 上传图片 ...")
                     up = client.upload_file(group_no, file_path)
-                    width, height = jpeg_dimensions(file_path)
-                    print(f"[*] 上传成功: {up['url']}")
-                    ack = ensure_im().send_image(group_no, up["url"], width, height)
+                    image_path = up.get("path")
+                    if not isinstance(image_path, str) or not image_path.strip():
+                        raise ValueError("上传响应缺少图片预览 path，未发送图片消息")
+                    print(f"[*] 上传成功: {image_path}")
+                    ack = ensure_im().send_image(group_no, image_path, width, height)
                     if ack.reason_code == 1:
                         print(f"[+] 已发送图片: messageID={ack.message_id} "
                               f"messageSeq={ack.message_seq} ({width}x{height})")

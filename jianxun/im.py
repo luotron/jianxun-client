@@ -499,6 +499,10 @@ class WKIMClient:
         height: int = 0,
         channel_type: int = CHANNEL_GROUP,
     ) -> SendAck:
+        if not isinstance(url, str) or not url.strip():
+            raise ValueError("图片消息缺少预览地址")
+        if width <= 0 or height <= 0:
+            raise ValueError("图片宽高必须大于 0，请先读取图片真实尺寸")
         payload = json.dumps(
             {"width": width, "height": height, "url": url, "type": 2},
             separators=(",", ":"),
