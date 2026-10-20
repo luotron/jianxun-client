@@ -52,29 +52,53 @@ class CaptchaRequired(ApiError):
 CAPTCHA_STATUS = 220
 
 
-def jpeg_dimensions(path: str) -> tuple[int, int]:
-    """Read (width, height) from a JPEG's SOF marker. (0, 0) when unknown."""
+def image_dimensions(path: str) -> tuple[int, int]:
+    """Read PNG/JPEG dimensions from file contents; (0, 0) if unrecognised."""
     import struct
 
     with open(path, "rb") as fh:
         data = fh.read()
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        if len(data) < 33 or data[8:16] != b"\0\0\0\rIHDR":
+            return 0, 0
+        width, height = struct.unpack(">II", data[16:24])
+        return (width, height) if width > 0 and height > 0 else (0, 0)
     if data[:2] != b"\xff\xd8":
         return 0, 0
     i = 2
-    while i + 4 < len(data):
+    # All SOF variants that carry dimensions, excluding DHT/JPG/DAC markers.
+    sof = {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7,
+           0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF}
+    while i < len(data):
         if data[i] != 0xFF:
+            return 0, 0
+        while i < len(data) and data[i] == 0xFF:
             i += 1
+        if i >= len(data):
+            break
+        marker = data[i]
+        i += 1
+        if marker in (0xDA, 0xD9):  # Scan data/end before a recognised SOF.
+            break
+        if marker in (0xD8, 0x01) or 0xD0 <= marker <= 0xD7:
             continue
-        marker = data[i + 1]
-        if marker == 0xD8 or (0xD0 <= marker <= 0xD7):
-            i += 2
-            continue
-        length = struct.unpack(">H", data[i + 2:i + 4])[0]
-        if marker in (0xC0, 0xC1, 0xC2, 0xC3):  # SOF0..3
-            height, width = struct.unpack(">HH", data[i + 5:i + 9])
-            return width, height
-        i += 2 + length
+        if i + 2 > len(data):
+            break
+        length = struct.unpack(">H", data[i:i + 2])[0]
+        if length < 2 or i + length > len(data):
+            break
+        if marker in sof:
+            if length < 8:
+                break
+            height, width = struct.unpack(">HH", data[i + 3:i + 7])
+            return (width, height) if width > 0 and height > 0 else (0, 0)
+        i += length
     return 0, 0
+
+
+def jpeg_dimensions(path: str) -> tuple[int, int]:
+    """Compatibility alias; also recognises PNG images."""
+    return image_dimensions(path)
 
 
 @dataclass
@@ -421,7 +445,8 @@ class JianxunClient:
             {"path": "file/preview/chat/2/<groupNo>/<uuid>",
              "url":  "https://zy-jp-prod2.oss-ap-northeast-1.aliyuncs.com/chat/2/<groupNo>/<uuid>"}
 
-        The ``url`` is what goes into the image-message payload.
+        Use ``path`` for the image-message payload's ``url``, matching the app.
+        The absolute OSS ``url`` is the uploaded object's storage address.
         """
         import time as _time
         import urllib.parse as _urlparse

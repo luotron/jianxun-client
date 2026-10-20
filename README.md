@@ -447,7 +447,7 @@ jianxun-login/
 | 获取指定群成员列表 | HTTP | `/v1/groups/{groupNo}/members` | GET | **已实现+实测**：`?keyword=&limit=50&page=1` 分页，非群成员报 400 |
 | 群成员增量同步 | HTTP | `/v1/groups/{groupNo}/membersync` | GET | `?version=&limit=` 增量 |
 | 发送文字消息 | **悟空IM TCP** | `SendPacket`（`jianxun/im.py`） | — | **已实现**：`channel_id=群号, channel_type=2`，payload `{"content":"...","type":1}` |
-| 发送图片 | HTTP + 悟空IM | `/v1/file/upload` → `SendPacket` | — | **已实现**：先上传拿 OSS URL，再发 `{"width","height","url","type":2}` |
+| 发送图片 | HTTP + 悟空IM | `/v1/file/upload` → `SendPacket` | — | **已实测**：读取 PNG/JPEG 真实尺寸，上传后用返回的预览 `path` 构造图片消息 |
 | 接收群消息 | **悟空IM TCP** | `RecvPacket`（服务器下推） | — | 客户端回 `RecvackPacket`（`im.py` 已实现解析/校验/回执） |
 | 会话列表同步 | HTTP | `/v1/conversation/sync` | POST | body: `{version,last_msg_seqs,msg_count,device_uuid}`（抓包已解出） |
 | 频道消息历史 | HTTP | `/v1/message/channel/sync` | POST | 拉历史消息 |
@@ -517,7 +517,13 @@ python main.py
 首字符的 ASCII 值异或；还原后是 `CONNECT/CONNACK`、`SEND/SENDACK`、
 `RECV/RECVACK` 和 `PING/PONG`。IM 使用 X25519 协商及 AES-CBC 消息加密。
 文本载荷为 `{"content":"...","type":1}`，图片载荷为
-`{"width":0,"height":0,"url":"...","type":2}`。
+`{"width":320,"height":180,"url":"file/preview/chat/2/...","type":2}`。
+图片宽高必须大于 0；菜单先识别 PNG/JPEG 尺寸，识别失败时提示错误，不上传、不发送。
+
+群菜单选择「4. 发送图片」后，会直接弹出文件选择窗口，无需输入本地路径。
+选中 PNG/JPG/JPEG 并点击「打开」即开始上传和发送，取消选图返回群菜单。
+需要在有图形桌面的环境中运行；Windows 官方 Python 安装时需包含 Tcl/Tk，
+Ubuntu/Debian 缺少 Tkinter 时可运行 `sudo apt install python3-tk`。
 
 客户端只有一个后台读取线程，把 SENDACK 和收到的消息分别分发；发送、接收和
 心跳共用同一个 socket。等待接收超时不会关闭连接。发送成功以
@@ -571,9 +577,12 @@ POST <该url>  multipart 字段 file（x-sign 头为字面量 "x-sign"，与 App
            "url":"https://zy-jp-prod2.oss-ap-northeast-1.aliyuncs.com/chat/2/<groupNo>/<uuid>"}
 ```
 
-图片载荷的加解密和收发在本地 socket 测试中覆盖；本次没有重新验证 HTTP 图片
-上传到线上图片送达的完整流程。群列表、群成员等 HTTP 功能保留原有实现，
-其可用性与独立 socket 脚本分别验证。
+图片消息的 `url` 使用上传返回的 `path`（`file/preview/...`），与原 App 一致；
+上传返回的另一个 `url` 是 OSS 存储地址。
+2026-10-20 已通过 `main.py` 群菜单第 4 项实测 PNG 上传与发送：
+群序号 22，第二账号收到 `320×180` 的图片载荷，预览接口返回的文件与上传原图一致。
+证据见 [图片发送验证](doc/ida_socket/live_image_send_20261020.json)。
+测试覆盖客户端链路，未通过手机截图核对显示结果。
 
 ```python
 from jianxun import JianxunClient
