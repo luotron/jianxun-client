@@ -520,6 +520,11 @@ python main.py
 `{"width":320,"height":180,"url":"file/preview/chat/2/...","type":2}`。
 图片宽高必须大于 0；菜单先识别 PNG/JPEG 尺寸，识别失败时提示错误，不上传、不发送。
 
+群菜单选择「4. 发送图片」后，会直接弹出文件选择窗口，无需输入本地路径。
+选中 PNG/JPG/JPEG 并点击「打开」即开始上传和发送，取消选图返回群菜单。
+需要在有图形桌面的环境中运行；Windows 官方 Python 安装时需包含 Tcl/Tk，
+Ubuntu/Debian 缺少 Tkinter 时可运行 `sudo apt install python3-tk`。
+
 客户端只有一个后台读取线程，把 SENDACK 和收到的消息分别分发；发送、接收和
 心跳共用同一个 socket。等待接收超时不会关闭连接。发送成功以
 `ack.success`（`reason_code == 1`）为准；发送回执超时表示接收状态未知，

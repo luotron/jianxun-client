@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 from jianxun.client import image_dimensions, jpeg_dimensions
 from jianxun.config import Config
 from jianxun.im import WKIMClient
-from main import group_view_menu
+from main import choose_image_file, group_view_menu
 
 
 def png(width=320, height=180):
@@ -64,7 +64,8 @@ class ImageTests(unittest.TestCase):
             path = Path(folder) / "test.png"
             path.write_bytes(png())
             output = io.StringIO()
-            with patch("main.ask", side_effect=["4", str(path), "6"]), \
+            with patch("main.ask", side_effect=["4", "6"]), \
+                    patch("main.choose_image_file", return_value=str(path)), \
                     patch("main.WKIMClient", return_value=im), redirect_stdout(output):
                 group_view_menu(api, {"group_no": "group"}, cfg)
         im.send_image.assert_called_once_with("group", "file/preview/chat/2/group/upload", 320, 180)
@@ -75,7 +76,8 @@ class ImageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "broken.png"
             path.write_bytes(b"not an image")
-            with patch("main.ask", side_effect=["4", str(path), "6"]), \
+            with patch("main.ask", side_effect=["4", "6"]), \
+                    patch("main.choose_image_file", return_value=str(path)), \
                     patch("main.WKIMClient") as constructor, redirect_stdout(io.StringIO()):
                 group_view_menu(api, {"group_no": "group"}, Config.load())
         api.upload_file.assert_not_called()
@@ -84,11 +86,43 @@ class ImageTests(unittest.TestCase):
     def test_menu_does_not_send_storage_url_when_preview_path_missing(self):
         api = Mock(token="test-token")
         api.upload_file.return_value = {"url": "https://storage.example.test/upload"}
-        with patch("main.ask", side_effect=["4", "test.png", "6"]), \
+        with patch("main.ask", side_effect=["4", "6"]), \
+                patch("main.choose_image_file", return_value="test.png"), \
                 patch("main.image_dimensions", return_value=(320, 180)), \
                 patch("main.WKIMClient") as constructor, redirect_stdout(io.StringIO()):
             group_view_menu(api, {"group_no": "group"}, Config.load())
         constructor.assert_not_called()
+
+    def test_cancel_picker_returns_to_menu_without_upload_or_connection(self):
+        api = Mock(token="test-token")
+        with patch("main.ask", side_effect=["4", "6"]) as ask, \
+                patch("main.choose_image_file", return_value="") as picker, \
+                patch("main.WKIMClient") as constructor, redirect_stdout(io.StringIO()):
+            group_view_menu(api, {"group_no": "group"}, Config.load())
+        picker.assert_called_once()
+        self.assertEqual(ask.call_count, 2)
+        api.upload_file.assert_not_called()
+        constructor.assert_not_called()
+
+    def test_picker_returns_selection_and_cleans_up_window(self):
+        tkinter = Mock()
+        tkinter.TclError = RuntimeError
+        for selection in ("C:/images/my photo.png", ""):
+            with self.subTest(selection=selection):
+                tkinter.reset_mock()
+                tkinter.filedialog.askopenfilename.return_value = selection
+                with patch.dict("sys.modules", {"tkinter": tkinter}):
+                    self.assertEqual(choose_image_file(), selection)
+                tkinter.Tk.return_value.destroy.assert_called_once()
+
+    def test_picker_display_failure_explained_and_window_cleaned_up(self):
+        tkinter = Mock()
+        tkinter.TclError = RuntimeError
+        tkinter.filedialog.askopenfilename.side_effect = RuntimeError("no display")
+        with patch.dict("sys.modules", {"tkinter": tkinter}):
+            with self.assertRaisesRegex(ValueError, "图形桌面"):
+                choose_image_file()
+        tkinter.Tk.return_value.destroy.assert_called_once()
 
     def test_image_api_rejects_zero_dimensions_before_socket_write(self):
         im = WKIMClient()

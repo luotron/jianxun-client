@@ -49,6 +49,38 @@ def ask(prompt: str, default: str = "") -> str:
     return value if value else default
 
 
+def choose_image_file() -> str:
+    """Open a desktop file picker; cancelling returns an empty selection."""
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+    except ImportError as exc:
+        raise ValueError(
+            "选图窗口需要 Tkinter。Windows 请安装 Python 的 Tcl/Tk 组件；"
+            "Ubuntu/Debian 可运行 sudo apt install python3-tk。"
+        ) from exc
+
+    root = None
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        root.update()
+        return filedialog.askopenfilename(
+            parent=root,
+            title="选择要发送到当前群的图片",
+            filetypes=[
+                ("PNG / JPEG 图片", "*.png *.jpg *.jpeg *.PNG *.JPG *.JPEG"),
+                ("所有文件", "*"),
+            ],
+        ) or ""
+    except tk.TclError as exc:
+        raise ValueError("无法打开选图窗口，请在有图形桌面的终端中运行 main.py。") from exc
+    finally:
+        if root is not None:
+            root.destroy()
+
+
 def try_saved_token(cfg: Config, client: JianxunClient) -> bool:
     """Validate the token persisted in config.json via ``GET /group/my``."""
     token = (cfg.token or "").strip()
@@ -286,8 +318,10 @@ def group_view_menu(client: JianxunClient, group: dict, cfg: Config) -> None:
                     else:
                         print(f"[!] 发送失败: reasonCode={ack.reason_code} ({ack.reason_name})")
                 elif choice == "4":
-                    file_path = ask("本地图片路径: ")
+                    print("[*] 请选择图片（取消可返回群菜单）...", flush=True)
+                    file_path = choose_image_file()
                     if not file_path:
+                        print("[*] 已取消选择图片。")
                         continue
                     width, height = image_dimensions(file_path)
                     if width <= 0 or height <= 0:
